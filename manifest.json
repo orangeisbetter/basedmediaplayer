@@ -1,0 +1,15 @@
+{
+    "name": "Based Media Player",
+    "icons": [
+        {
+            "src": "bmp.png",
+            "type": "image/png",
+            "sizes": "192x192"
+        }
+    ],
+    "start_url": "/",
+    "display": "standalone",
+    "display-override": [
+        "window-controls-overlay"
+    ]
+}

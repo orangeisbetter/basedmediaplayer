@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="media-src 'self' blob:;">
+    <title>Nothing is playing</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <link rel="shortcut icon" href="bmp.png" type="image/png">
+    <script src="https://code.iconify.design/iconify-icon/3.0.0/iconify-icon.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mp3tag.js@latest/dist/mp3tag.min.js"></script>
+    <script src="dist/main.js"></script>
+</head>
+
+<body>
+    <template id="template_album">
+        <div class="album">
+            <div class="cover-box">
+                <img class="cover">
+            </div>
+            <a class="album-name ellipsis"></a>
+            <a class="album-artist ellipsis"></a>
+        </div>
+    </template>
+    <template id="tree_list_item">
+        <li>
+            <span class="caret"></span>
+            <span class="icon"><iconify-icon width="16px" height="16px"></iconify-icon></span>
+            <span class="label"></span>
+            <ul></ul>
+        </li>
+    </template>
+    <template id="tree_list">
+        <div class="tree-view">
+            <ul></ul>
+        </div>
+    </template>
+    <template id="template_playlist_item">
+        <div class="playlist-item" draggable="true">
+            <span class="track-name"></span>
+            <span class="time"></span>
+        </div>
+    </template>
+    <template id="template_album_view_track">
+        <tr>
+            <td></td>
+            <td class="track-name"></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+    </template>
+    <template id="template_track_list_item">
+        <tr>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+    </template>
+    <dialog style="width: 400px" id="load_dialog">
+        <div>Loading music library...</div>
+        <progress id="progress_bar" style="display: block; width: 100%"></progress>
+        <div style="text-align: center;" id="loading_lbl"></div>
+    </dialog>
+    <aside class="sidebar"></aside>
+    <header>
+        <div>version 0.0.1</div>
+        <div style="border-left: 1px solid gray; height: 1em"></div>
+        <div>Please report bugs, feature requests, or suggestions to <a href="mailto:feedback@orangeisbetter.net">feedback@orangeisbetter.net</a></div>
+        <div class="breadcrumbs" style="display: flex; align-items: center;"></div>
+        <div class="glue"></div>
+        <select>
+            <option value="albums">Albums</option>
+            <!-- <option value="artists">Artists</option> -->
+            <option value="tracks">Tracks</option>
+        </select>
+        <input type="search" id="search_bar" placeholder="Start typing to search...">
+    </header>
+    <div class="main-view">
+        <div class="browser-view">
+            <div class="albums-list" id="albums_list"></div>
+            <div class="artists-list"></div>
+            <div class="tracks-list">
+                <table>
+                    <thead>
+                        <tr>
+                            <th width="250">Album</th>
+                            <th width="200">Album Artist</th>
+                            <th width="50">#</th>
+                            <th width="300">Title</th>
+                            <th width="75">Duration</th>
+                            <th width="200">Artist</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="album-view" id="track_list" style="display: none;">
+            <div class="column">
+                <div class="album-info">
+                    <img class="album-cover">
+                    <div class="album-name"></div>
+                    <div class="album-artist"></div>
+                    <div class="actions">
+                        <button id="play_all_btn">Play all</button>
+                        <button id="add_to_playlist_btn">Add to playlist</button>
+                    </div>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Title</th>
+                            <th>Duration</th>
+                            <th>Artist</th>
+                            <th>Composer</th>
+                        </tr>
+                    </thead>
+                    <tbody class="selectable-list">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="lyrics-panel" style="display: none;"></div>
+    <div class="playlist" id="playlist_panel" style="--width: 300px">
+        <div class="playlist-bar">
+            <button class="clear" id="playlist_clear_btn">Clear</button>
+            <button class="shuffle" id="playlist_clear_btn">Shuffle</button>
+        </div>
+        <div class="playlist-list selectable-list" id="playlist_list"></div>
+        <div class="playlist-info">0 tracks, duration: 0:00</div>
+    </div>
+    <div class="player">
+        <div class="album-info">
+            <img class="cover" id="album_cover_img" style="display: none">
+            <a class="album-name ellipsis" id="album_name_lbl"></a>
+            <a class="album-artist ellipsis" id="album_artist_lbl"></a>
+        </div>
+        <div class="media">
+            <div class="controls">
+                <button id="skip_previous_btn" class="skip-previous" title="Skip to previous track" disabled>
+                    <iconify-icon icon="mdi:skip-previous" width="24" height="24"></iconify-icon>
+                </button>
+                <button id="play_pause_btn" class="play-pause" title="Toggle playback of the player" disabled>
+                    <iconify-icon id="play_icon" icon="mdi:play" width="24" height="24"></iconify-icon>
+                </button>
+                <button id="skip_next_btn" class="skip-next" title="Skip to next track" disabled>
+                    <iconify-icon icon="mdi:skip-next" width="24" height="24"></iconify-icon>
+                </button>
+            </div>
+            <div class="current-media">
+                <span class="track-title ellipsis" id="current_track_title_lbl">Nothing is playing</span>
+                <span class="track-time"></span>
+                <div class="progress-bar" style="--progress: 0%">
+                    <div class="hovercatch"></div>
+                    <div class="meter"></div>
+                    <div class="thumb"></div>
+                </div>
+            </div>
+        </div>
+        <div class="additional-controls">
+            <button class="playlist-toggle" id="playlist_btn" title="Toggle playlist">
+                <iconify-icon icon="mdi:playlist-music" width="24" height="24"></iconify-icon>
+            </button>
+            <button class="lyrics-view" title="View song lyrics" disabled>
+                <iconify-icon icon="mdi:text" width="24" height="24"></iconify-icon>
+            </button>
+            <button class="volume-control" style="cursor: ns-resize;" id="volume_ctrl" title="Click and drag to adjust volume.">
+                <iconify-icon icon="mdi:volume" width="24" height="24"></iconify-icon>
+                <div class="volume-label" id="volume_display" style="display: none">0 dB</div>
+            </button>
+            <div class="separator"></div>
+            <button class="shuffle" title="Shuffle" disabled>
+                <iconify-icon icon="mdi:shuffle" width="24" height="24"></iconify-icon>
+            </button>
+            <button class="loop" title="Repeat">
+                <iconify-icon icon="mdi:repeat" width="24" height="24"></iconify-icon>
+            </button>
+        </div>
+    </div>
+    <span class="dragging-playlist">
+        <iconify-icon icon="mdi:music-note" width="96" height="96"></iconify-icon>
+        <div class="label"></div>
+    </span>
+</body>
+
+</html>
