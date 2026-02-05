@@ -1,9 +1,9 @@
-import { Player } from "../player";
-import { Playlist, PlaylistInsertEventData, PlaylistNumTracksChangeEventData, PlaylistRemoveEventData, PlaylistReorderEventData, PlaylistTrackChangeEventData } from "../playlist";
-import { convertTime } from "../time";
-import { Track } from "../track";
-import { ContextMenu, Menu } from "./menu";
-import { SelectableList } from "./selectablelist";
+import { Player } from "../player.ts";
+import { Playlist, PlaylistInsertEventData, PlaylistNumTracksChangeEventData, PlaylistRemoveEventData, PlaylistReorderEventData, PlaylistShuffleEventData, PlaylistTrackChangeEventData } from "../playlist.ts";
+import { convertTime } from "../time.ts";
+import { Track } from "../track.ts";
+import { MenuSystem, Menu } from "./menu.ts";
+import { SelectableList } from "./selectablelist.ts";
 
 declare const template_playlist_item: HTMLTemplateElement;
 
@@ -16,6 +16,7 @@ export class PlaylistView {
     private static selectableList: SelectableList;
 
     private static clearButton: HTMLButtonElement;
+    private static shuffleButton: HTMLButtonElement;
 
     // private static selected: number[] = [];
     // private static lastSelectedIndex: number = null;
@@ -68,7 +69,7 @@ export class PlaylistView {
     }
 
     static init() {
-        this.list = playlist_panel.querySelector(".playlist-list");
+        this.list = playlist_panel.querySelector(".playlist-list")!;
         // this.list.addEventListener("click", PlaylistView.playlistItemClickHandler.bind(this));
         this.list.addEventListener("dblclick", PlaylistView.playlistItemDoubleClickHandler.bind(this));
         this.list.addEventListener("dragstart", PlaylistView.dragStartHandler.bind(this));
@@ -78,17 +79,20 @@ export class PlaylistView {
         this.list.addEventListener("dragleave", PlaylistView.dragLeaveHandler.bind(this));
         this.list.addEventListener("drop", PlaylistView.dropHandler.bind(this));
 
-        this.clearButton = playlist_panel.querySelector(".clear");
+        this.clearButton = playlist_panel.querySelector(".clear")!;
         this.clearButton.addEventListener("click", Playlist.clear);
+
+        this.shuffleButton = playlist_panel.querySelector(".shuffle")!;
+        this.shuffleButton.addEventListener("click", Playlist.shuffle);
 
         this.dragMarker = document.createElement("div");
         this.dragMarker.className = "drag-target-marker";
 
-        this.dragElement = document.querySelector(".dragging-playlist");
+        this.dragElement = document.querySelector(".dragging-playlist")!;
 
         this.selectableList = SelectableList.register(this.list);
 
-        ContextMenu.set(this.list, () => {
+        MenuSystem.setContextMenu(this.list, () => {
             const length = this.selectableList.getSelected().length;
             if (length > 1) {
                 return this.multiMenu;
@@ -130,6 +134,7 @@ export class PlaylistView {
         Playlist.events.remove.addListener(PlaylistView.removeHandler);
         Playlist.events.reorder.addListener(PlaylistView.reorderHandler);
         Playlist.events.clear.addListener(PlaylistView.clearHandler);
+        Playlist.events.shuffle.addListener(PlaylistView.shuffleHandler);
         Playlist.events.trackChange.addListener(PlaylistView.trackChangeHandler);
         Playlist.events.numTracksChange.addListener(PlaylistView.numTracksChangeHandler);
     }
@@ -138,7 +143,7 @@ export class PlaylistView {
         PlaylistView.currentTrack?.scrollIntoView({ behavior: "instant", block: "nearest", container: "nearest" } as ScrollIntoViewOptions);
     }
 
-    private static playlistItemDoubleClickHandler(event: PointerEvent) {
+    private static playlistItemDoubleClickHandler(event: MouseEvent) {
         // Play
         const item = (event.target as HTMLElement).closest(".playlist-item");
         const index = PlaylistView.items.indexOf(item as HTMLElement);
@@ -152,16 +157,18 @@ export class PlaylistView {
     private static dragStartHandler(event: DragEvent) {
         const selectedIndices = this.selectableList.getSelected();
 
-        event.dataTransfer.items.add(JSON.stringify(selectedIndices), "application/mp-playlist-indices");
-        const label = this.dragElement.querySelector(".label");
+        event.dataTransfer!.items.add(JSON.stringify(selectedIndices), "application/mp-playlist-indices");
+        const label = this.dragElement.querySelector(".label")!;
         label.textContent = `${selectedIndices.length} track${selectedIndices.length != 1 ? "s" : ""}`;
         const height = this.dragElement.getBoundingClientRect().height;
         const width = this.dragElement.getBoundingClientRect().width;
-        event.dataTransfer.setDragImage(this.dragElement, width / 2, height - 10);
+        event.dataTransfer!.setDragImage(this.dragElement, width / 2, height - 10);
     }
 
-    private static dragEndHandler(event: DragEvent) {
-        // this.draggingElement = false;
+    private static dragEndHandler() {
+    }
+
+    private static dragEnterHandler() {
     }
 
     private static findDropIndex(y: number) {
@@ -193,16 +200,8 @@ export class PlaylistView {
         }
     }
 
-    private static dragEnterHandler(event: DragEvent) {
-        // const related = event.relatedTarget as Node | null;
-        // if (!related || !this.list.contains(related)) {
-        //     // Drag entry
-        //     console.log("Drag enter");
-        // }
-    }
-
     private static dragOverHandler(event: DragEvent) {
-        const dt = event.dataTransfer;
+        const dt = event.dataTransfer!;
         if (!dt.types.includes("application/mp-playlist-indices") && !dt.types.includes("application/mp-track-ids")) {
             // Ignore
             return;
@@ -225,7 +224,7 @@ export class PlaylistView {
     }
 
     private static dropHandler(event: DragEvent) {
-        const dt = event.dataTransfer;
+        const dt = event.dataTransfer!;
         if (!dt.types.includes("application/mp-playlist-indices") && !dt.types.includes("application/mp-track-ids")) {
             // Ignore
             return;
@@ -254,12 +253,13 @@ export class PlaylistView {
 
     private static playHandler() {
         const index = this.selectableList.getSelected()[0];
+        console.log(index);
         Playlist.changeTrack(index);
         Player.play();
     }
 
     private static createPlaylistItem(trackId: number): DocumentFragment {
-        const track = Track.byID(trackId);
+        const track = Track.byID(trackId)!;
 
         const clone = document.importNode(template_playlist_item.content, true);
 
@@ -267,7 +267,7 @@ export class PlaylistView {
         trackName.textContent = track.title;
         trackName.title = track.title;
 
-        const time = clone.querySelector(".time");
+        const time = clone.querySelector(".time")!;
         time.textContent = convertTime(track.duration);
 
         return clone;
@@ -303,17 +303,17 @@ export class PlaylistView {
 
     private static removeHandler(trackIndices: PlaylistRemoveEventData) {
         for (const index of trackIndices) {
-            PlaylistView.getItemByIndex(index).remove();
+            PlaylistView.getItemByIndex(index)!.remove();
         }
         // Deselect removed items
         // PlaylistView.selected.filter(index => !trackIndices.includes(index));
         PlaylistView.updateItemsCache();
     }
 
-    private static reorderHandler({ from, to, mapping }: PlaylistReorderEventData) {
+    private static reorderHandler({ from, to }: PlaylistReorderEventData) {
         const moving = [];
         for (const index of from) {
-            const item = PlaylistView.getItemByIndex(index);
+            const item = PlaylistView.getItemByIndex(index)!;
             moving.push(item);
             item.remove();
         }
@@ -341,10 +341,24 @@ export class PlaylistView {
         // PlaylistView.selected.length = 0;
     }
 
+    private static shuffleHandler({ mapping }: PlaylistShuffleEventData) {
+        const items = Array.from(PlaylistView.list.querySelectorAll(":scope > .playlist-item"));
+
+        for (const item of items) {
+            item.remove();
+        }
+
+        for (const index of mapping) {
+            PlaylistView.list.appendChild(items[index]);
+        }
+
+        PlaylistView.updateItemsCache();
+    }
+
     private static trackChangeHandler({ index }: PlaylistTrackChangeEventData) {
         PlaylistView.currentTrack?.classList.remove("active");
         if (index != null) {
-            PlaylistView.currentTrack = PlaylistView.getItemByIndex(index);
+            PlaylistView.currentTrack = PlaylistView.getItemByIndex(index)!;
             PlaylistView.currentTrack.classList.add("active");
         } else {
             PlaylistView.currentTrack = null;
@@ -354,7 +368,7 @@ export class PlaylistView {
 
     private static numTracksChangeHandler({ number, duration }: PlaylistNumTracksChangeEventData) {
         // Handle this somehow
-        const playlistInfo = playlist_panel.querySelector(".playlist-info");
+        const playlistInfo = playlist_panel.querySelector(".playlist-info")!;
         playlistInfo.textContent = `${number} track${number != 1 ? "s" : ""}, duration: ${convertTime(duration)}`;
     }
 

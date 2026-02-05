@@ -1,11 +1,11 @@
-import { Album } from "../album";
-import { PlaybackController } from "../playbackcontroller";
-import { Player } from "../player";
-import { LoopMode, Playlist, PlaylistTrackChangeEventData } from "../playlist";
-import { convertTime } from "../time";
-import { Track } from "../track";
-import { AlbumDisplay } from "./albumdisplay";
-import { PlaylistView } from "./playlistview";
+import { Album } from "../album.ts";
+import { PlaybackController } from "../playbackcontroller.ts";
+import { Player } from "../player.ts";
+import { LoopMode, Playlist, PlaylistShuffleEventData, PlaylistTrackChangeEventData } from "../playlist.ts";
+import { convertTime } from "../time.ts";
+import { Track } from "../track.ts";
+import { AlbumDisplay } from "./albumdisplay.ts";
+import { PlaylistView } from "./playlistview.ts";
 
 export class PlayerView {
     private static rootElement: HTMLElement;
@@ -27,7 +27,7 @@ export class PlayerView {
     private static volumeLabel: HTMLElement;
     private static playlistToggleButton: HTMLButtonElement;
     private static lyricsViewButton: HTMLButtonElement;
-    private static shuffleButton: HTMLButtonElement;
+    // private static shuffleButton: HTMLButtonElement;
     private static loopButton: HTMLButtonElement;
     private static loopIcon: HTMLElement;
 
@@ -40,46 +40,46 @@ export class PlayerView {
     static init(root: HTMLElement) {
         this.rootElement = root;
 
-        this.albumCoverImage = this.rootElement.querySelector(":scope > .album-info > .cover");
-        this.albumNameLabel = this.rootElement.querySelector(":scope > .album-info > .album-name");
-        this.albumArtistLabel = this.rootElement.querySelector(":scope > .album-info > .album-artist");
+        this.albumCoverImage = this.rootElement.querySelector(":scope > .album-info > .cover")!;
+        this.albumNameLabel = this.rootElement.querySelector(":scope > .album-info > .album-name")!;
+        this.albumArtistLabel = this.rootElement.querySelector(":scope > .album-info > .album-artist")!;
 
-        this.skipPreviousButton = this.rootElement.querySelector(":scope > .media > .controls > .skip-previous");
-        this.skipNextButton = this.rootElement.querySelector(":scope > .media > .controls > .skip-next");
-        this.playPauseButton = this.rootElement.querySelector(":scope > .media > .controls > .play-pause");
-        this.playPauseIcon = this.playPauseButton.querySelector("iconify-icon");
+        this.skipPreviousButton = this.rootElement.querySelector(":scope > .media > .controls > .skip-previous")!;
+        this.skipNextButton = this.rootElement.querySelector(":scope > .media > .controls > .skip-next")!;
+        this.playPauseButton = this.rootElement.querySelector(":scope > .media > .controls > .play-pause")!;
+        this.playPauseIcon = this.playPauseButton.querySelector("iconify-icon")!;
 
-        this.trackTitleLabel = this.rootElement.querySelector(":scope > .media > .current-media > .track-title");
-        this.trackTimeLabel = this.rootElement.querySelector(":scope > .media > .current-media > .track-time");
-        this.trackProgressBar = this.rootElement.querySelector(":scope > .media > .current-media > .progress-bar");
+        this.trackTitleLabel = this.rootElement.querySelector(":scope > .media > .current-media > .track-title")!;
+        this.trackTimeLabel = this.rootElement.querySelector(":scope > .media > .current-media > .track-time")!;
+        this.trackProgressBar = this.rootElement.querySelector(":scope > .media > .current-media > .progress-bar")!;
 
-        this.volumeControlButton = this.rootElement.querySelector(":scope > .additional-controls > .volume-control");
-        this.volumeLabel = this.volumeControlButton.querySelector(":scope > .volume-label");
-        this.playlistToggleButton = this.rootElement.querySelector(":scope > .additional-controls > .playlist-toggle");
-        this.lyricsViewButton = this.rootElement.querySelector(":scope > .additional-controls > .lyrics-view");
-        this.shuffleButton = this.rootElement.querySelector(":scope > .additional-controls > .shuffle");
-        this.loopButton = this.rootElement.querySelector(":scope > .additional-controls > .loop");
-        this.loopIcon = this.loopButton.querySelector("iconify-icon");
+        this.volumeControlButton = this.rootElement.querySelector(":scope > .additional-controls > .volume-control")!;
+        this.volumeLabel = this.volumeControlButton.querySelector(":scope > .volume-label")!;
+        this.playlistToggleButton = this.rootElement.querySelector(":scope > .additional-controls > .playlist-toggle")!;
+        this.lyricsViewButton = this.rootElement.querySelector(":scope > .additional-controls > .lyrics-view")!;
+        // this.shuffleButton = this.rootElement.querySelector(":scope > .additional-controls > .shuffle");
+        this.loopButton = this.rootElement.querySelector(":scope > .additional-controls > .loop")!;
+        this.loopIcon = this.loopButton.querySelector("iconify-icon")!;
 
-        this.lyricsPanel = document.querySelector(".lyrics-panel");
+        this.lyricsPanel = document.querySelector(".lyrics-panel")!;
 
         this.playPauseButton.addEventListener("click", this.playPauseButtonHandler);
         this.skipPreviousButton.addEventListener("click", () => PlaybackController.skipPreviousAndPlay());
         this.skipNextButton.addEventListener("click", () => PlaybackController.skipNextAndPlay());
 
-        this.albumCoverImage.addEventListener("click", () => AlbumDisplay.displayAlbum(Player.getCurrentTrack().albumId, null));
-        this.albumNameLabel.addEventListener("click", () => AlbumDisplay.displayAlbum(Player.getCurrentTrack().albumId, null));
+        this.albumCoverImage.addEventListener("click", () => AlbumDisplay.displayAlbum(Player.getCurrentTrack()!.albumId, null));
+        this.albumNameLabel.addEventListener("click", () => AlbumDisplay.displayAlbum(Player.getCurrentTrack()!.albumId, null));
 
         this.playlistToggleButton.addEventListener("click", PlaylistView.toggleVisibility);
         this.lyricsViewButton.addEventListener("click", () => {
             if (this.lyricsPanel.style.display === "none") {
-                this.lyricsPanel.textContent = Player.getCurrentTrack()?.lyrics[0];
+                this.lyricsPanel.textContent = Player.getCurrentTrack()?.lyrics?.[0] ?? "";
                 this.lyricsPanel.style.display = "";
             } else {
                 this.lyricsPanel.style.display = "none";
             }
         });
-        this.shuffleButton.addEventListener("click", () => this.shuffleButton.classList.toggle("active"));
+        // this.shuffleButton.addEventListener("click", () => this.shuffleButton.classList.toggle("active"));
         this.loopButton.addEventListener("click", () => this.loopButtonClick());
 
         switch (Playlist.loopMode) {
@@ -89,6 +89,8 @@ export class PlayerView {
             case LoopMode.Track:
                 this.loopButton.classList.add("active");
                 this.loopIcon.setAttribute("icon", "mdi:repeat-once");
+                break;
+            default:
                 break;
         }
 
@@ -101,6 +103,7 @@ export class PlayerView {
         let locked = false;
         let valid = false;
 
+        // Volume control
         this.volumeControlButton.addEventListener("mousedown", () => {
             this.volumeControlButton.requestPointerLock();
 
@@ -136,8 +139,9 @@ export class PlayerView {
             this.volumeLabel.textContent = Player.volumeDB.toFixed(1) + " dB";
         });
 
-        const thumb = this.trackProgressBar.querySelector(":scope > .thumb");
-        const hoverCatch = this.trackProgressBar.querySelector(":scope > .hovercatch");
+        // Progress bar / slider
+        const thumb: HTMLDivElement = this.trackProgressBar.querySelector(":scope > .thumb")!;
+        const hoverCatch: HTMLDivElement = this.trackProgressBar.querySelector(":scope > .hovercatch")!;
 
         let dragging = false;
 
@@ -150,33 +154,39 @@ export class PlayerView {
             const percent = ratio * 100;
             this.trackProgressBar.style.setProperty("--progress", `${percent}%`);
 
-            Player.seekTo(Player.getCurrentTrackDuration() * ratio);
+            Player.seekTo(Player.getCurrentTrackDuration()! * ratio);
         }
 
         thumb.addEventListener("pointerdown", (event: PointerEvent) => {
-            dragging = true;
-            thumb.setPointerCapture(event.pointerId);
-            setProgressFromEvent(event);
+            if (Player.getCurrentTrack()) {
+                dragging = true;
+                thumb.setPointerCapture(event.pointerId);
+                setProgressFromEvent(event);
+            }
         });
 
         hoverCatch.addEventListener("pointerdown", (event: PointerEvent) => {
-            dragging = true;
-            thumb.setPointerCapture(event.pointerId);
-            setProgressFromEvent(event);
+            if (Player.getCurrentTrack()) {
+                dragging = true;
+                thumb.setPointerCapture(event.pointerId);
+                setProgressFromEvent(event);
+            }
         })
 
-        window.addEventListener("pointermove", event => {
+        globalThis.addEventListener("pointermove", event => {
             if (!dragging) return;
             setProgressFromEvent(event);
         });
 
-        window.addEventListener("pointerup", () => {
+        globalThis.addEventListener("pointerup", () => {
             dragging = false;
         });
 
+        // Event listener attaching
         Playlist.events.numTracksChange.addListener(this.skipButtonCheck.bind(this));
         Playlist.events.trackChange.addListener(this.skipButtonCheck.bind(this));
         Playlist.events.reorder.addListener(this.skipButtonCheck.bind(this));
+        Playlist.events.shuffle.addListener(this.shuffleHandler.bind(this));
         Playlist.events.trackChange.addListener(this.trackChangeHandler.bind(this));
         Player.events.timeChange.addListener(this.timeChangeHandler.bind(this));
         Player.events.play.addListener(this.playHandler.bind(this));
@@ -244,35 +254,42 @@ export class PlayerView {
 
             navigator.mediaSession.playbackState = "none";
             navigator.mediaSession.metadata = null;
-        } else {
-            const track = Track.byID(id);
-            this.playPauseButton.disabled = false;
-            this.trackTitleLabel.textContent = track.title;
-            this.trackTimeLabel.textContent = `${convertTime(0)} / ${convertTime(track.duration)}`;
-
-            const album = Album.byID(track.albumId);
-            this.albumNameLabel.textContent = album.name;
-            this.albumArtistLabel.textContent = album.artist;
-            this.albumCoverImage.src = album.getCoverURL();
-            this.albumCoverImage.style.display = "";
-
-            if (track.lyrics?.length > 0) {
-                this.lyricsPanel.textContent = track.lyrics[0];
-                this.lyricsViewButton.disabled = false;
-            } else {
-                this.lyricsPanel.style.display = "none";
-                this.lyricsViewButton.disabled = true;
-            }
-
-            document.title = `${track.title} - ${track.artist ?? album.artist ?? "Unknown Artist"}`;
-
-            navigator.mediaSession.metadata = new MediaMetadata({
-                title: track.title,
-                artist: track.artist ?? album.artist ?? "Unknown Artist",
-                album: album.name ?? "Unknown Album",
-                artwork: [{ src: album.getCoverURL() }]
-            });
+            return;
         }
+
+        const track = Track.byID(id);
+        if (!track) return;
+
+        this.playPauseButton.disabled = false;
+        this.trackTitleLabel.textContent = track.title;
+        this.trackTimeLabel.textContent = `${convertTime(0)} / ${convertTime(track.duration)}`;
+
+        const album = Album.byID(track.albumId)!;
+        this.albumNameLabel.textContent = album.name ?? "Unknown Album";
+        this.albumArtistLabel.textContent = album.artist ?? "Unknown Artist";
+        this.albumCoverImage.src = album.getCoverURL();
+        this.albumCoverImage.style.display = "";
+
+        if (track.lyrics && track.lyrics?.length > 0) {
+            this.lyricsPanel.textContent = track.lyrics[0]!;
+            this.lyricsViewButton.disabled = false;
+        } else {
+            this.lyricsPanel.style.display = "none";
+            this.lyricsViewButton.disabled = true;
+        }
+
+        document.title = `${track.title} - ${track.artist ?? album.artist ?? "Unknown Artist"}`;
+
+        navigator.mediaSession.metadata = new MediaMetadata({
+            title: track.title,
+            artist: track.artist ?? album.artist ?? "Unknown Artist",
+            album: album.name ?? "Unknown Album",
+            artwork: [{ src: album.getCoverURL() }]
+        });
+    }
+
+    private static shuffleHandler({ }: PlaylistShuffleEventData) {
+        this.skipButtonCheck();
     }
 
     private static timeChangeHandler(time: number) {

@@ -1,12 +1,12 @@
 import { IDBPDatabase } from "idb";
-import { Emitter } from "./emitter";
-import { Track } from "./track";
+import { Emitter } from "./emitter.ts";
+import { Track } from "./track.ts";
 
 export class Player {
     private static db: IDBPDatabase;
 
-    private static currentTrack: Track = null;
-    private static file: Blob = null;
+    private static currentTrack: Track | null = null;
+    private static file: Blob | null = null;
     private static url: string;
     private static playing: boolean = false;
     private static _volume: number;
@@ -45,23 +45,28 @@ export class Player {
         Player.volumeDB = await Player.db.get("config", "volume");
     }
 
-    static changeTrack(trackId: number): Promise<void> {
+    static changeTrack(trackId: number): void {
         if (trackId === null) {
             Player.currentTrack = null;
             Player.audio.pause();
             Player.events.clear.emit();
             return;
         }
+        const track = Track.byID(trackId);
+        if (!track) {
+            Player.loadPromise = Promise.reject();
+            return;
+        }
         Player.playing = false;
         URL.revokeObjectURL(Player.url);
-        Player.currentTrack = Track.byID(trackId);
+        Player.currentTrack = track;
         Player.loadPromise = Player.loadTrackAudio(Player.currentTrack.handle);
     }
 
     private static async loadTrackAudio(fileHandle: FileSystemFileHandle): Promise<void> {
         const opts = { mode: "read" };
-        if ((await (fileHandle as any).queryPermission(opts)) !== "granted") {
-            if ((await (fileHandle as any).requestPermission(opts)) !== "granted") {
+        if ((await fileHandle.queryPermission(opts)) !== "granted") {
+            if ((await fileHandle.requestPermission(opts)) !== "granted") {
                 throw Error("Unable to access file handle.");
             }
         }
@@ -72,11 +77,11 @@ export class Player {
 
     private static endedHandler() {
         Player.playing = false;
-        Player.events.pause.emit(Player.currentTrack.id);
-        Player.events.finish.emit(Player.currentTrack.id);
+        Player.events.pause.emit(Player.currentTrack!.id);
+        Player.events.finish.emit(Player.currentTrack!.id);
     }
 
-    private static timeUpdateHandler(event: Event) {
+    private static timeUpdateHandler() {
         Player.events.timeChange.emit(Player.audio.currentTime);
     }
 
@@ -103,7 +108,7 @@ export class Player {
         this.loadPromise.then(async () => {
             Player.playing = true;
             await Player.audio.play();
-            Player.events.play.emit(Player.currentTrack.id);
+            Player.events.play.emit(Player.currentTrack!.id);
         });
     }
 
@@ -111,7 +116,7 @@ export class Player {
         if (!Player.playing) return;
         Player.playing = false;
         Player.audio.pause();
-        Player.events.pause.emit(Player.currentTrack.id);
+        Player.events.pause.emit(Player.currentTrack!.id);
     }
 
     static seekTo(time: number) {
@@ -122,8 +127,8 @@ export class Player {
         return Player.playing;
     }
 
-    static getCurrentTrackDuration(): number {
-        return Player.currentTrack.duration;
+    static getCurrentTrackDuration(): number | null {
+        return Player.currentTrack?.duration ?? null;
     }
 
     static getCurrentTrack(): Track | null {

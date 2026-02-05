@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "es2024"
+    ]
+  },
+  "imports": {
+    "@std/": "https://deno.land/std@0.224.0/",
+    "idb": "npm:idb@8.0.3",
+    "music-metadata": "npm:music-metadata@11.10.3"
+  },
+  "tasks": {
+    "build": "deno bundle --platform browser --minify --sourcemap --watch src/music.mjs -o dist/main.js"
+  }
+}

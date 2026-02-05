@@ -1,5 +1,5 @@
 import { IDBPDatabase } from "idb";
-import { Track } from "./track";
+import { Track } from "./track.ts";
 
 export interface CollectionStore {
     name: string;
@@ -24,7 +24,7 @@ export class Collection {
         }
     }
 
-    get parent(): Collection {
+    get parent(): Collection | undefined {
         return this._parent;
     }
 
@@ -83,7 +83,9 @@ export class Collection {
     getAlbumIds(): Set<number> {
         const albums = new Set<number>();
         for (const id of this.getTrackIds()) {
-            albums.add(Track.byID(id).albumId);
+            const track = Track.byID(id);
+            if (!track) continue;
+            albums.add(track.albumId);
         }
         return albums;
     }

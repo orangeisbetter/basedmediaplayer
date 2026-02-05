@@ -48,7 +48,7 @@ class MenuItemView {
     clickHandler() {
         this.item.click?.call(undefined);
         if (!this.item.submenu) {
-            this.parentMenu.removeAll();
+            MenuSystem.closeAllMenus();
         }
     }
 
@@ -159,6 +159,15 @@ class MenuView {
                 }
                 break;
             case "menubar":
+                this.element.style.left = `${options.rect.left}px`;
+
+                if (options.rect.bottom + rect.height < window.innerHeight) {
+                    this.element.style.top = `${options.rect.bottom}px`;
+                } else if (options.rect.top - rect.height >= 0) {
+                    this.element.style.top = `${options.rect.top - rect.height}px`;
+                } else {
+                    this.element.style.top = "0px";
+                }
                 break;
             case "submenu":
                 if (options.rect.x + options.rect.width - 3 + rect.width < window.innerWidth) {
@@ -186,10 +195,11 @@ class MenuView {
         // Register click away
         const clickAway = (event: MouseEvent) => {
             if (!this.element.contains(event.target as Node)) {
-                this.remove();
+                MenuSystem.closeAllMenus();
                 document.removeEventListener("click", clickAway);
             }
         };
+
         document.addEventListener("click", clickAway);
     }
 
@@ -200,32 +210,68 @@ class MenuView {
     remove() {
         this.element.remove();
         if (!this.parent && this.source === "context") {
-            ContextMenu.openMenu = null;
+            MenuSystem.openMenu = null;
         }
-    }
-
-    removeAll() {
-        this.remove();
-        this.parent?.removeAll();
+        if (!this.parent && this.source === "bar") {
+            MenuSystem.openMenu = null;
+        }
     }
 }
 
 type MenuCallback = () => Menu | null;
 
-export class ContextMenu {
-    static registry: WeakMap<Element, MenuCallback> = new WeakMap();
+export class MenuSystem {
+    static contextMenuRegistry: WeakMap<Element, MenuCallback> = new WeakMap();
     static openMenu: MenuView = null;
+    static activeMenuBarButton: HTMLButtonElement = null;
 
     static init() {
         document.addEventListener("contextmenu", event => this.onContextMenu(event));
     }
 
-    static set(element: Element, menu: MenuCallback) {
-        this.registry.set(element, menu);
+    static setContextMenu(element: Element, menu: MenuCallback) {
+        this.contextMenuRegistry.set(element, menu);
     }
 
-    static remove(element: Element) {
-        this.registry.delete(element);
+    static removeContextMenu(element: Element) {
+        this.contextMenuRegistry.delete(element);
+    }
+
+    static createMenuBar(element: HTMLDivElement, menu: Menu) {
+        element.className = "menubar";
+
+        for (const entry of menu.menuitems) {
+            if (entry.kind === "item") {
+                const button = document.createElement("button");
+                button.className = "menubar-item";
+                button.innerHTML = entry.html;
+
+                button.addEventListener("click", e => {
+                    e.stopPropagation();
+
+                    this.closeAllMenus();
+
+                    if (entry.submenu) {
+                        const rect = button.getBoundingClientRect();
+                        this.openMenu = new MenuView(entry.submenu, { type: "menubar", rect }, "bar");
+                        button.classList.add("open");
+                        this.activeMenuBarButton = button;
+                    }
+
+                    entry.click?.call(undefined);
+                });
+
+                element.appendChild(button);
+            }
+        }
+    }
+
+    static closeAllMenus() {
+        this.openMenu?.remove();
+        if (MenuSystem.activeMenuBarButton !== null) {
+            MenuSystem.activeMenuBarButton.classList.remove("open");
+            MenuSystem.activeMenuBarButton = null;
+        }
     }
 
     private static onContextMenu(event: PointerEvent) {
@@ -234,9 +280,8 @@ export class ContextMenu {
             return;
         };
 
-        let element = event.target as Element | null;
         for (let element = event.target as Element | null; element; element = element.parentElement) {
-            const menuCallback = this.registry.get(element);
+            const menuCallback = this.contextMenuRegistry.get(element);
             if (!menuCallback) {
                 continue;
             }

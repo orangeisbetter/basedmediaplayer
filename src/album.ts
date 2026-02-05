@@ -15,7 +15,7 @@ export class Album implements AlbumStore {
     id: number;
     name?: string;
     artist?: string;
-    coverData?: any;
+    coverData?: IPicture;
     trackIds: number[];
 
     private cover?: string;
@@ -76,7 +76,7 @@ export class Album implements AlbumStore {
         if (!this.coverData) {
             return "missing.png";
         } else if (!this.cover) {
-            this.cover = URL.createObjectURL(new Blob([this.coverData.data], { type: this.coverData.format }));
+            this.cover = URL.createObjectURL(new Blob([this.coverData.data as BlobPart], { type: this.coverData.format }));
         }
         return this.cover;
     }

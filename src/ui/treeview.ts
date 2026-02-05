@@ -2,23 +2,14 @@ declare const tree_list_item: HTMLTemplateElement;
 declare const tree_list: HTMLTemplateElement;
 
 export class TreeViewNode {
-    children: TreeViewNode[];
+    protected children: TreeViewNode[];
 
-    protected parent?: TreeViewNode;
-    protected element: HTMLElement;
-    protected childrenElement: HTMLUListElement;
+    public parent?: TreeViewNode;
+    public element!: HTMLElement;
+    protected childrenElement!: HTMLUListElement;
 
-    constructor(options: { children?: TreeViewNode[], elementOptions?: any }) {
-        this.createElement(options.elementOptions);
+    constructor(options: { children?: TreeViewNode[] }) {
         this.children = options.children ?? [];
-        for (const child of this.children) {
-            child.parent = this;
-            this.childrenElement.appendChild(child.element);
-        }
-    }
-
-    protected createElement(options?: any) {
-        // Do nothing for super class
     }
 
     addChild(node: TreeViewNode) {
@@ -38,21 +29,19 @@ export class TreeViewNode {
     }
 
     remove() {
-        this.parent.removeChild(this);
+        this.parent?.removeChild(this);
     }
 }
 
-export type TreeViewChildNodeClickHandler = (this: TreeViewChildNode, event: PointerEvent) => any;
+export type TreeViewChildNodeClickHandler = (this: TreeViewChildNode, event: PointerEvent) => void;
 
 export class TreeViewChildNode extends TreeViewNode {
-    children: TreeViewNode[];
-
-    private labelElement: HTMLElement;
-    private _label: string;
+    private labelElement!: HTMLElement;
+    private _label?: string;
     private _expanded?: boolean;
 
     get label() {
-        return this._label;
+        return this._label!;
     }
     set label(text: string) {
         this._label = text;
@@ -60,7 +49,7 @@ export class TreeViewChildNode extends TreeViewNode {
     }
 
     get expanded() {
-        return this._expanded;
+        return this._expanded!;
     }
     set expanded(expanded: boolean) {
         this._expanded = expanded;
@@ -72,28 +61,35 @@ export class TreeViewChildNode extends TreeViewNode {
     }
 
     constructor(options: { children?: TreeViewNode[], iconName?: string, labelText: string, expanded?: boolean, onClick?: TreeViewChildNodeClickHandler }) {
-        super({ children: options.children, elementOptions: { iconName: options.iconName, onClick: options.onClick } });
+        super({ children: options.children });
+        this.createElement({ iconName: options.iconName, onClick: options.onClick });
+        for (const child of this.children) {
+            child.parent = this;
+            this.childrenElement.appendChild(child.element);
+        }
         this.label = options.labelText;
         this.expanded = options.expanded ?? false;
     }
 
-    protected createElement(options: { iconName?: string, onClick: TreeViewChildNodeClickHandler }) {
+    protected createElement(options: { iconName?: string, onClick?: TreeViewChildNodeClickHandler }) {
         this.element = document.importNode(tree_list_item.content, true).firstElementChild as HTMLElement;
 
         const icon = this.element.querySelector("iconify-icon");
         if (options.iconName === undefined) {
-            icon.parentElement.remove();
+            icon!.parentElement!.remove();
         } else {
-            icon.setAttribute("icon", options.iconName);
+            icon!.setAttribute("icon", options.iconName);
         }
 
-        const caret = this.element.querySelector(".caret");
+        const caret = this.element.querySelector(".caret")!;
         caret.addEventListener("click", this.expandToggle.bind(this));
 
-        this.labelElement = this.element.querySelector(".label");
-        this.childrenElement = this.element.querySelector("ul");
+        this.labelElement = this.element.querySelector(".label")!;
+        this.childrenElement = this.element.querySelector("ul")!;
 
-        this.labelElement.addEventListener("click", options.onClick?.bind(this));
+        if (options.onClick) {
+            this.labelElement.addEventListener("click", options.onClick.bind(this));
+        }
     }
 
     expandToggle() {
@@ -104,11 +100,16 @@ export class TreeViewChildNode extends TreeViewNode {
 export class TreeView extends TreeViewNode {
     constructor(element: HTMLElement, children?: TreeViewNode[]) {
         super({ children: children });
+        this.createElement();
+        for (const child of this.children) {
+            child.parent = this;
+            this.childrenElement.appendChild(child.element);
+        }
         element.appendChild(this.element);
     }
 
     protected createElement() {
         this.element = document.importNode(tree_list.content, true).firstElementChild as HTMLElement;
-        this.childrenElement = this.element.querySelector("ul");
+        this.childrenElement = this.element.querySelector("ul")!;
     }
 }

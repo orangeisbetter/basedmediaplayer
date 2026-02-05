@@ -1,23 +1,23 @@
-import { openDB, IDBPDatabase } from "idb";
+import { openDB } from "idb";
 
 import { Track } from "./track.ts";
 import { Album } from "./album.ts";
-import { CollectionStore, Library } from "./collection.ts";
+import { Library } from "./collection.ts";
 import { init } from "./ui/librarytreeview.ts";
 import { MusicBrowserView } from "./ui/musicbrowserview.ts";
 import { AlbumDisplay } from "./ui/albumdisplay.ts";
-import { Playlist } from "./playlist.ts"
 import { PlaylistView } from "./ui/playlistview.ts"
 import { Player } from "./player.ts";
 import { PlayerView } from "./ui/playerview.ts";
 import { PlaybackController } from "./playbackcontroller.ts";
-import { ContextMenu } from "./ui/menu.ts";
+import { MenuSystem } from "./ui/menu.ts";
 import { SelectableList } from "./ui/selectablelist.ts";
+import { MenuBar } from "./ui/menubar.ts";
 
 /** @type {Album[]} */
 const albums = [];
 
-/** @type {IDBPDatabase} */
+/** @type {import("idb").IDBPDatabase} */
 let db;
 
 // Service worker
@@ -159,7 +159,7 @@ async function loadLibrary() {
     load_dialog.close();
 }
 
-/** @type {CollectionStore[]} */
+/** @type {import("./collection.ts").CollectionStore[]} */
 const defaultCollections = [
     {
         name: "Soundtrack",
@@ -199,38 +199,77 @@ async function initDB() {
     });
 }
 
-async function saveRootHandle(dirHandle) {
+function saveRootHandle(dirHandle) {
     return db.put("config", dirHandle, "root");
 }
 
-async function loadRootHandle() {
+function loadRootHandle() {
     return db.get("config", "root");
 }
 
-function getLibraryHandle() {
-    return new Promise(async (resolve, reject) => {
-        let root = await loadRootHandle();
-        if (root && await ensureReadPermission(root)) {
-            // We already did this
-            resolve(root);
-        } else {
-            // Prompt the user
-            document.querySelector(".main-view").innerHTML += `<button id="library_select_btn">Select Library</button>`;
-            library_select_btn.addEventListener("click", async () => {
-                const dirHandle = await window.showDirectoryPicker();
-                await ensureReadPermission(dirHandle);
-                saveRootHandle(dirHandle);
-                root = dirHandle;
-                resolve(root);
-            });
-        }
+/**
+ * @returns {Promise<FileSystemDirectoryHandle>}
+ */
+async function getLibraryHandle() {
+    const root = await loadRootHandle();
+    if (root && await ensureReadPermission(root)) {
+        return root;
+    }
+
+    // Ensure supported browser
+    if (!globalThis.showDirectoryPicker) {
+        const unsupportedDialog = document.createElement("dialog");
+        unsupportedDialog.style.width = "400px"
+        unsupportedDialog.innerHTML = `
+        <div class="content">
+            <h2>Error: Unsupported Browser or context</h2>
+            <p>It appears your browser does not support the <code>Window.showDirectoryPicker()</code> function, which is needed by this application, or you are accessing the page via an insecure context.</p>
+            <p>For now, you'll need to use a chromium-based browser (such as Google Chrome, Microsoft Edge, Brave, Supermium, and others) and use a secure context to run this app.</p>
+        </div>
+        `;
+
+        const buttonBar = document.createElement("div");
+        buttonBar.className = "button-bar";
+
+        const glue = document.createElement("div");
+        glue.className = "glue";
+
+        const okButton = document.createElement("button");
+        okButton.style.float = "right";
+        okButton.textContent = "Close";
+        okButton.addEventListener("click", () => {
+            unsupportedDialog.close();
+            unsupportedDialog.remove();
+        });
+
+        buttonBar.appendChild(glue);
+        buttonBar.appendChild(okButton);
+
+        unsupportedDialog.appendChild(buttonBar);
+
+        document.body.appendChild(unsupportedDialog);
+        unsupportedDialog.showModal();
+
+        throw new Error("Directory picker unsupported");
+    }
+
+    // Prompt the user with a button to select library (naive but ok)
+    document.querySelector(".main-view").innerHTML += `<button id="library_select_btn">Select Library</button>`;
+    return await new Promise(resolve => {
+        library_select_btn.addEventListener("click", async () => {
+            const dirHandle = await globalThis.showDirectoryPicker();
+            await ensureReadPermission(dirHandle);
+            saveRootHandle(dirHandle);
+            resolve(dirHandle);
+        });
     });
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
     await initDB();
 
-    ContextMenu.init();
+    MenuSystem.init();
+    MenuBar.init(document.querySelector("#menubar"));
 
     PlaybackController.init();
 

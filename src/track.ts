@@ -14,9 +14,9 @@ export interface TrackStore {
     duration: number;
     disc: number | null;
     no: number | null;
-    title?: string;
+    title: string;
     artist?: string;
-    lyrics?: string[];
+    lyrics?: (string | undefined)[];
     date?: string;
     genre?: string[];
     composer?: string[];
@@ -29,9 +29,9 @@ export class Track implements TrackStore {
     duration: number;
     disc: number | null;
     no: number | null;
-    title?: string;
+    title: string;
     artist?: string;
-    lyrics?: string[];
+    lyrics?: (string | undefined)[];
     date?: string;
     genre?: string[];
     composer?: string[];
@@ -39,30 +39,46 @@ export class Track implements TrackStore {
     static highestID: number = 0;
     static tracks: Map<number, Track> = new Map();
 
-    constructor(id: number) {
-        this.id = id;
+    constructor(store: TrackStore) {
+        this.id = store.id;
+        this.albumId = store.albumId;
+        this.handle = store.handle;
+        this.duration = store.duration;
+        this.disc = store.disc;
+        this.no = store.no;
+        this.title = store.title;
+        this.artist = store.artist;
+        this.lyrics = store.lyrics;
+        this.date = store.date;
+        this.genre = store.genre;
+        this.composer = store.composer;
+
         Track.tracks.set(this.id, this);
     }
 
     static createFromStore({ id, ...store }: TrackStore): Track {
-        const track = new Track(id ?? (Track.highestID++));
-        Object.assign(track, store);
+        const track = new Track({
+            id: id ?? (Track.highestID++),
+            ...store,
+        })
         return track;
     }
 
     static createFromProtoTrack(proto: ProtoTrack, albumId: number): Track {
-        const track = new Track(Track.highestID++);
-        track.albumId = albumId;
-        track.handle = proto.handle;
-        track.duration = proto.format.duration;
-        track.disc = proto.tag.disk.no;
-        track.no = proto.tag.track.no;
-        track.title = proto.tag.title;
-        track.artist = proto.tag.artist;
-        track.lyrics = proto.tag.lyrics?.map(lyrics => lyrics.text);
-        track.date = proto.tag.date;
-        track.genre = proto.tag.genre;
-        track.composer = proto.tag.composer;
+        const track = new Track({
+            id: Track.highestID++,
+            albumId: albumId,
+            handle: proto.handle,
+            duration: proto.format.duration!,
+            disc: proto.tag.disk.no,
+            no: proto.tag.track.no,
+            title: proto.tag.title ?? proto.handle.name,
+            artist: proto.tag.artist,
+            lyrics: proto.tag.lyrics?.map(lyrics => lyrics.text),
+            date: proto.tag.date,
+            genre: proto.tag.genre,
+            composer: proto.tag.composer,
+        });
         return track;
     }
 
@@ -110,7 +126,7 @@ export class Track implements TrackStore {
         };
     }
 
-    static async loadFile(handle: FileSystemFileHandle, path: string): Promise<ProtoTrack> {
+    static async loadFile(handle: FileSystemFileHandle, path: string): Promise<ProtoTrack | null> {
         try {
             const file = await handle.getFile();
 

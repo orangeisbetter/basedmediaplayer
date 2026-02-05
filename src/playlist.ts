@@ -1,6 +1,6 @@
-import { convertTime } from "./time";
-import { Track } from "./track";
-import { Emitter } from "./emitter";
+import { convertTime } from "./time.ts";
+import { Track } from "./track.ts";
+import { Emitter } from "./emitter.ts";
 
 export type PlaylistAddEventData = number[];
 export type PlaylistInsertEventData = {
@@ -20,6 +20,12 @@ export type PlaylistReorderEventData = {
     /** A mapping between old indices and new ones. */
     mapping: number[];
 };
+export type PlaylistShuffleEventData = {
+    /** A mapping from new indices to old ones. */
+    mapping: number[];
+    /** The new index of the current track. */
+    current: number;
+}
 export type PlaylistTrackChangeEventData = {
     /** The current track index. */
     index: number | null;
@@ -68,6 +74,8 @@ export class Playlist {
         reorder: new Emitter<PlaylistReorderEventData>(),
         /** Emitted when the playlist is cleared. */
         clear: new Emitter<void>(),
+        /** Emitted when the playlist is shuffled. */
+        shuffle: new Emitter<PlaylistShuffleEventData>(),
         /** Emitted when the current track changes. */
         trackChange: new Emitter<PlaylistTrackChangeEventData>(),
         /** Emitted when the number of tracks in the playlist changes. */
@@ -175,6 +183,33 @@ export class Playlist {
         }
     }
 
+    /** 
+     * Shuffles the playlist
+     */
+    static shuffle() {
+        const indices = Array.from(Playlist.list, (_, i) => i);
+
+        for (let currentIndex = Playlist.list.length - 1; currentIndex >= 0; currentIndex--) {
+            const randomIndex = Math.floor(Math.random() * (currentIndex + 1));
+
+            [Playlist.list[currentIndex], Playlist.list[randomIndex]] = [Playlist.list[randomIndex], Playlist.list[currentIndex]];
+            [indices[currentIndex], indices[randomIndex]] = [indices[randomIndex], indices[currentIndex]];
+        }
+
+        // Find where the current track moved to, since it's too complicated to do this in the above loop
+        for (let i = 0; i < indices.length; i++) {
+            if (indices[i] == Playlist.currentTrackIdx) {
+                Playlist.currentTrackIdx = i;
+                break;
+            }
+        }
+
+        console.log(Playlist.list);
+        console.log(Playlist.currentTrackIdx);
+
+        Playlist.events.shuffle.emit({ mapping: indices, current: Playlist.currentTrackIdx });
+    }
+
     /**
      * Removes and then reinserts tracks from the playlist. This is similar to a
      * call to {@link Playlist.remove} and to {@link Playlist.insert}, except that
@@ -266,6 +301,7 @@ export class Playlist {
             return null;
         }
         Playlist.changeTrack(Playlist.currentTrackIdx + 1);
+        console.log(Playlist.currentTrackIdx);
         return Playlist.currentTrackId;
     }
 
@@ -329,7 +365,7 @@ export class Playlist {
      * @returns the total duration of the playlist
      */
     static getDuration() {
-        return Playlist.list.reduce((prev, current) => prev + Track.byID(current).duration, 0);
+        return Playlist.list.reduce((prev, current) => prev + Track.byID(current)!.duration, 0);
     }
 
     /**

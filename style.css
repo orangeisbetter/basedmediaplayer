@@ -1,6 +1,8 @@
 body {
     margin: 0;
-    font-family: sans-serif;
+    font-family:
+        /* "Cascadia Code", Consolas, */
+        sans-serif;
     margin-bottom: 48px;
     font-size: 13px;
     display: grid;
@@ -29,6 +31,53 @@ body {
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
+}
+
+code {
+    font-family: monospace, monospace;
+}
+
+button {
+    border: 1px solid #ccc;
+    background-color: #ffffff;
+    padding: 3px 8px;
+
+    &.square {
+        padding-inline: 3px;
+    }
+
+    &.active {
+        color: var(--accent-color);
+    }
+}
+
+.button-bar {
+    display: flex;
+    flex-direction: row;
+    gap: 4px;
+}
+
+h2 {
+    font-size: 1.5em;
+}
+
+h3 {
+    font-size: 1.2em;
+}
+
+dialog {
+    border: 1px solid #ccc;
+    padding: 0;
+
+    .content {
+        padding: 1em;
+    }
+
+    .button-bar {
+        background-color: #eee;
+        padding: 8px 16px;
+        border-top: 1px solid #ccc;
+    }
 }
 
 input[type=search],
@@ -120,6 +169,23 @@ header {
 
     background-color: #eee;
     /* background-image: linear-gradient(#fff, #ddd 50%, #ccc 50%, #ddd); */
+
+    .menubar {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+
+        .menubar-item {
+            border-color: transparent;
+            background-color: transparent;
+
+            &:hover,
+            &.open {
+                background-color: #fff;
+                border-color: #ccc;
+            }
+        }
+    }
 }
 
 .main-view {
@@ -502,20 +568,6 @@ table {
             border-left: 1px solid #ccc;
             align-self: stretch;
         }
-    }
-}
-
-button {
-    border: 1px solid #ccc;
-    background-color: #ffffff;
-    padding: 3px;
-
-    &:not(:has(iconify-icon)) {
-        padding: 3px 8px;
-    }
-
-    &.active {
-        color: var(--accent-color);
     }
 }
 

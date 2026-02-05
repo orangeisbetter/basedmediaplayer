@@ -1,0 +1,20 @@
+{
+    "0.1.0": {
+        "features": [
+            "Implemented playlist shuffling",
+            "Added \"Shuffle play\" button to album view",
+            "Added menu bar",
+            "Added release notes dialog"
+        ],
+        "changes": [
+            "Added \"View as\" label to browser mode selector",
+            "Removed unused shuffle button from the play bar",
+            "Added notice dialog informing users of unsupported browsers or insecure contexts"
+        ],
+        "bug_fixes": [
+            "Removed the ability to seek with the progress bar when there is nothing playing",
+            "Changed project from node to deno",
+            "Several under-the-hood improvements and fixes"
+        ]
+    }
+}

@@ -1,8 +1,7 @@
-import { Album } from "../album";
-import { MusicBrowserView } from "./musicbrowserview";
-import { Collection, Library } from "../collection";
-import { TreeView, TreeViewChildNode, TreeViewChildNodeClickHandler, TreeViewNode } from "./treeview";
-import { AlbumDisplay } from "./albumdisplay";
+import { MusicBrowserView } from "./musicbrowserview.ts";
+import { Collection, Library } from "../collection.ts";
+import { TreeView, TreeViewChildNode, TreeViewChildNodeClickHandler } from "./treeview.ts";
+import { AlbumDisplay } from "./albumdisplay.ts";
 
 export class CollectionNode {
     collection: Collection;
@@ -43,7 +42,7 @@ export class LibraryTreeView {
             new TreeViewChildNode({
                 labelText: "Local Library",
                 iconName: "mdi:library-music",
-                onClick: () => this.albumsClick(),
+                onClick: () => this.localLibraryClick(),
                 // children: [
                 //     new TreeViewChildNode({
                 //         labelText: "All music",
@@ -53,18 +52,24 @@ export class LibraryTreeView {
                 // ]
             }),
             new TreeViewChildNode({
-                labelText: "Playlists",
-                iconName: "mdi:playlist-music",
-            }),
-            new TreeViewChildNode({
                 labelText: "Collections",
                 iconName: "mdi:music-box-multiple",
                 children: this.collectionNodes.map(node => node.treeViewNode)
-            })
+            }),
+            new TreeViewChildNode({
+                labelText: "Playlists",
+                iconName: "mdi:playlist-music",
+                children: [
+                    new TreeViewChildNode({
+                        labelText: "Study beats",
+                        iconName: "mdi:playlist-music",
+                    })
+                ]
+            }),
         ]);
     }
 
-    albumsClick() {
+    localLibraryClick() {
         MusicBrowserView.setCollection(null);
         AlbumDisplay.hide();
         MusicBrowserView.show();
@@ -72,6 +77,6 @@ export class LibraryTreeView {
 }
 
 export function init() {
-    const sidebar: HTMLElement = document.querySelector(".sidebar");
-    const libraryTreeView = new LibraryTreeView(sidebar, Library.collections);
+    const sidebar: HTMLElement = document.querySelector(".sidebar")!;
+    new LibraryTreeView(sidebar, Library.collections);
 }

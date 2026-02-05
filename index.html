@@ -63,22 +63,43 @@
         </tr>
     </template>
     <dialog style="width: 400px" id="load_dialog">
-        <div>Loading music library...</div>
-        <progress id="progress_bar" style="display: block; width: 100%"></progress>
-        <div style="text-align: center;" id="loading_lbl"></div>
+        <div class="content">
+            <div>Loading music library...</div>
+            <progress id="progress_bar" style="display: block; width: 100%"></progress>
+            <div style="text-align: center;" id="loading_lbl"></div>
+        </div>
+    </dialog>
+    <dialog style="width: 500px" id="release_notes_dialog">
+        <div class="content">
+            <h2>Release Notes</h2>
+            <p><span id="name"></span> version <span id="version"></span> release notes</p>
+            <h3>New Features</h3>
+            <ul id="features"></ul>
+            <h3>Changes</h3>
+            <ul id="changes"></ul>
+            <h3>Bug Fixes / Improvements</h3>
+            <ul id="bug_fixes"></ul>
+        </div>
+        <div class="button-bar">
+            <div class="glue"></div>
+            <button>Close</button>
+        </div>
     </dialog>
     <aside class="sidebar"></aside>
     <header>
-        <div>version 0.0.1</div>
-        <div style="border-left: 1px solid gray; height: 1em"></div>
-        <div>Please report bugs, feature requests, or suggestions to <a href="mailto:feedback@orangeisbetter.net">feedback@orangeisbetter.net</a></div>
+        <div id="menubar"></div>
+        <div style="border-left: 1px solid gray; height: 16px"></div>
+        <div>Please report bugs or suggestions to <a href="mailto:feedback@orangeisbetter.net">feedback@orangeisbetter.net</a></div>
         <div class="breadcrumbs" style="display: flex; align-items: center;"></div>
         <div class="glue"></div>
-        <select>
-            <option value="albums">Albums</option>
-            <!-- <option value="artists">Artists</option> -->
-            <option value="tracks">Tracks</option>
-        </select>
+        <div id="main_view_select">
+            <span>View as</span>
+            <select>
+                <option value="albums">Albums</option>
+                <!-- <option value="artists">Artists</option> -->
+                <option value="tracks">Tracks</option>
+            </select>
+        </div>
         <input type="search" id="search_bar" placeholder="Start typing to search...">
     </header>
     <div class="main-view">
@@ -110,6 +131,7 @@
                     <div class="album-artist"></div>
                     <div class="actions">
                         <button id="play_all_btn">Play all</button>
+                        <button id="shuffle_play_btn">Shuffle play</button>
                         <button id="add_to_playlist_btn">Add to playlist</button>
                     </div>
                 </div>
@@ -146,13 +168,13 @@
         </div>
         <div class="media">
             <div class="controls">
-                <button id="skip_previous_btn" class="skip-previous" title="Skip to previous track" disabled>
+                <button id="skip_previous_btn" class="square skip-previous" title="Skip to previous track" disabled>
                     <iconify-icon icon="mdi:skip-previous" width="24" height="24"></iconify-icon>
                 </button>
-                <button id="play_pause_btn" class="play-pause" title="Toggle playback of the player" disabled>
+                <button id="play_pause_btn" class="square play-pause" title="Toggle playback of the player" disabled>
                     <iconify-icon id="play_icon" icon="mdi:play" width="24" height="24"></iconify-icon>
                 </button>
-                <button id="skip_next_btn" class="skip-next" title="Skip to next track" disabled>
+                <button id="skip_next_btn" class="square skip-next" title="Skip to next track" disabled>
                     <iconify-icon icon="mdi:skip-next" width="24" height="24"></iconify-icon>
                 </button>
             </div>
@@ -167,21 +189,21 @@
             </div>
         </div>
         <div class="additional-controls">
-            <button class="playlist-toggle" id="playlist_btn" title="Toggle playlist">
+            <button class="square playlist-toggle" id="playlist_btn" title="Toggle playlist">
                 <iconify-icon icon="mdi:playlist-music" width="24" height="24"></iconify-icon>
             </button>
-            <button class="lyrics-view" title="View song lyrics" disabled>
+            <button class="square lyrics-view" title="View song lyrics" disabled>
                 <iconify-icon icon="mdi:text" width="24" height="24"></iconify-icon>
             </button>
-            <button class="volume-control" style="cursor: ns-resize;" id="volume_ctrl" title="Click and drag to adjust volume.">
+            <div class="separator"></div>
+            <button class="square volume-control" style="cursor: ns-resize;" id="volume_ctrl" title="Click and drag to adjust volume.">
                 <iconify-icon icon="mdi:volume" width="24" height="24"></iconify-icon>
                 <div class="volume-label" id="volume_display" style="display: none">0 dB</div>
             </button>
-            <div class="separator"></div>
-            <button class="shuffle" title="Shuffle" disabled>
+            <!-- <button class="square shuffle" title="Shuffle" disabled>
                 <iconify-icon icon="mdi:shuffle" width="24" height="24"></iconify-icon>
-            </button>
-            <button class="loop" title="Repeat">
+            </button> -->
+            <button class="square loop" title="Repeat">
                 <iconify-icon icon="mdi:repeat" width="24" height="24"></iconify-icon>
             </button>
         </div>
