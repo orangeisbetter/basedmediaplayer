@@ -16,5 +16,12 @@
             "Changed project from node to deno",
             "Several under-the-hood improvements and fixes"
         ]
+    },
+    "0.1.1": {
+        "bug_fixes": [
+            "Reworked the storage, retrieval, and structure of collections",
+            "Fixed a bug where an album with an id of 0 was not able to play",
+            "Move library loading logic into its own file"
+        ]
     }
 }

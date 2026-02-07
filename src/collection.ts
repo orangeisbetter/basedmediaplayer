@@ -1,44 +1,103 @@
 import { IDBPDatabase } from "idb";
 import { Track } from "./track.ts";
 
-export interface CollectionStore {
+export type CollectionStore = {
+    id: number;
     name: string;
     trackIds: number[];
-    collections: CollectionStore[];
+    parent: number;
 }
 
 export class Collection {
+    id: number;
     name: string;
     trackIds: Set<number>;
-    collections: Collection[];
+    children: number[];
+    parentId: number;
 
-    private tracksCache?: Set<number>;
-    private _parent?: Collection;
-
-    constructor(options: { name: string, trackIds: number[], collections: Collection[] }) {
-        this.name = options.name;
-        this.trackIds = new Set(options.trackIds);
-        this.collections = options.collections;
-        for (const collection of this.collections) {
-            collection._parent = this;
+    /**
+     * @deprecated Do not use this unless you need to
+     */
+    get collections(): Collection[] {
+        const arr = new Array(this.children.length)
+        for (const id of this.children) {
+            arr.push(Collection.collections.get(id));
         }
+        return arr;
     }
 
-    get parent(): Collection | undefined {
-        return this._parent;
+    private tracksCache?: Set<number>;
+
+    static highestID: number = 0;
+    static collections: Map<number, Collection> = new Map();
+
+    static rootCollections: number[] = [];
+
+    constructor(options: { id?: number, name: string, trackIds: number[], parentId: number }) {
+        this.id = options.id === undefined ? Collection.highestID++ : options.id;
+        this.name = options.name;
+        this.trackIds = new Set(options.trackIds);
+        this.parentId = options.parentId;
+        this.children = [];
     }
 
     static createFromStore(store: CollectionStore): Collection {
         return new Collection({
+            id: store.id,
             name: store.name,
             trackIds: store.trackIds,
-            collections: store.collections.map(store => Collection.createFromStore(store))
+            parentId: store.parent
         });
     }
 
-    addCollection(collection: Collection) {
-        collection._parent = this;
-        this.collections.push(collection);
+    getStore(): CollectionStore {
+        return {
+            id: this.id as number,
+            name: this.name,
+            trackIds: Array.from(this.trackIds),
+            parent: this.parentId
+        };
+    }
+
+    static async saveAll(db: IDBPDatabase) {
+        const transaction = db.transaction("collections", "readwrite");
+        const objectStore = transaction.objectStore("collections");
+        for (const collection of Collection.collections.values()) {
+            await objectStore.put(collection.getStore());
+        }
+        transaction.commit();
+    }
+
+    static async loadAll(db: IDBPDatabase) {
+        const collections: CollectionStore[] = await db.getAll("collections");
+
+        // First pass: create objects (except for root, which is created statically)
+        for (const collectionStore of collections) {
+            const collection = Collection.createFromStore(collectionStore);
+            Collection.collections.set(collection.id, collection);
+            if (collection.id >= Collection.highestID) {
+                Collection.highestID = collection.id + 1;
+            }
+        }
+
+        // Second pass: link children
+        for (const [id, collection] of Collection.collections) {
+            const parentId = collection.parentId;
+            if (parentId === -1) {
+                this.rootCollections.push(id);
+                continue;
+            }
+            Collection.collections.get(parentId)!.children.push(id);
+        }
+    }
+
+    static byID(id: number): Collection | undefined {
+        return Collection.collections.get(id);
+    }
+
+    invalidateTracksCache() {
+        this.tracksCache = undefined;
+        this.getParentCollection()?.invalidateTracksCache();
     }
 
     add(trackId: number) {
@@ -60,16 +119,29 @@ export class Collection {
         return success;
     }
 
-    invalidateTracksCache() {
-        this.tracksCache = undefined;
-        this._parent?.invalidateTracksCache();
+    *getChildren(): Generator<Collection> {
+        for (const id of this.children) {
+            yield Collection.collections.get(id)!;
+        }
+    }
+
+    getParentCollection(): Collection | null {
+        if (this.parentId === -1) return null;
+        return Collection.collections.get(this.parentId)!;
+    }
+
+    addChild(id: number) {
+        this.children.push(id);
+        this.invalidateTracksCache();
     }
 
     private gather(out: Set<number>) {
         if (this.trackIds) {
             for (const id of this.trackIds) out.add(id);
         }
-        for (const child of this.collections) child.gather(out);
+        for (const id of this.children) {
+            Collection.collections.get(id)!.gather(out);
+        }
     }
 
     getTrackIds(): Set<number> {
@@ -88,34 +160,5 @@ export class Collection {
             albums.add(track.albumId);
         }
         return albums;
-    }
-
-    getStore(): CollectionStore {
-        return {
-            name: this.name,
-            trackIds: Array.from(this.trackIds),
-            collections: this.collections.map(collection => collection.getStore())
-        };
-    }
-}
-
-export class Library {
-    static collections: Collection[] = [];
-
-    static initFromStore(store: CollectionStore[]): void {
-        this.collections = store.map(store => Collection.createFromStore(store));
-    }
-
-    static async save(db: IDBPDatabase) {
-        await db.put("library", this.getStore(), "collections");
-    }
-
-    static async load(db: IDBPDatabase) {
-        const store: CollectionStore[] = await db.get("library", "collections");
-        this.collections = store.map(store => Collection.createFromStore(store));
-    }
-
-    static getStore(): CollectionStore[] {
-        return this.collections.map(collection => collection.getStore());
     }
 }

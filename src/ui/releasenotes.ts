@@ -1,15 +1,14 @@
 import release_notes from "../../release_notes.json" with { type: "json" };
 
 export const NAME = "Based Media Player";
-export const VERSION = "0.1.0";
+export const VERSION = "0.1.1";
 
 export function showReleaseNotesDialog() {
-    const features: string[] = release_notes[VERSION].features;
-    const changes: string[] = release_notes[VERSION].changes;
-    const bugFixes: string[] = release_notes[VERSION].bug_fixes;
+    const features: string[] = release_notes[VERSION].features ?? [];
+    const changes: string[] = release_notes[VERSION].changes ?? [];
+    const bugFixes: string[] = release_notes[VERSION].bug_fixes ?? [];
 
     const dialog: HTMLDialogElement = document.querySelector("#release_notes_dialog")!;
-    console.log(dialog);
 
     const button: HTMLButtonElement = dialog.querySelector("button")!;
     button.addEventListener("click", () => dialog.close(), { once: true });

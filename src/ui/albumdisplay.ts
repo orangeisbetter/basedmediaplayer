@@ -18,7 +18,7 @@ export class AlbumDisplay {
     private static addToPlaylistButton: HTMLButtonElement;
     private static trackTableBody: HTMLTableSectionElement;
 
-    private static albumId?: number;
+    private static albumId: number | null = null;
     private static collection: Collection | null = null;
 
     private static trackIds: number[] = [];
@@ -132,7 +132,7 @@ export class AlbumDisplay {
     }
 
     private static playAll(index?: number) {
-        if (!this.albumId) {
+        if (this.albumId === null) {
             throw new Error("Cannot play album, no album set!");
         }
 

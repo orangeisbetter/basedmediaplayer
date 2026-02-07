@@ -204,9 +204,6 @@ export class Playlist {
             }
         }
 
-        console.log(Playlist.list);
-        console.log(Playlist.currentTrackIdx);
-
         Playlist.events.shuffle.emit({ mapping: indices, current: Playlist.currentTrackIdx });
     }
 
@@ -301,7 +298,6 @@ export class Playlist {
             return null;
         }
         Playlist.changeTrack(Playlist.currentTrackIdx + 1);
-        console.log(Playlist.currentTrackIdx);
         return Playlist.currentTrackId;
     }
 

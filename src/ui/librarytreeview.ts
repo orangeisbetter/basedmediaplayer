@@ -1,5 +1,5 @@
 import { MusicBrowserView } from "./musicbrowserview.ts";
-import { Collection, Library } from "../collection.ts";
+import { Collection } from "../collection.ts";
 import { TreeView, TreeViewChildNode, TreeViewChildNodeClickHandler } from "./treeview.ts";
 import { AlbumDisplay } from "./albumdisplay.ts";
 
@@ -10,7 +10,7 @@ export class CollectionNode {
 
     constructor(collection: Collection) {
         this.collection = collection;
-        this.children = collection.collections.map(collection => new CollectionNode(collection));
+        this.children = collection.children.map(child => new CollectionNode(Collection.byID(child)!));
         this.treeViewNode = new TreeViewChildNode({
             labelText: this.collection.name,
             iconName: "mdi:music-box-multiple",
@@ -31,13 +31,11 @@ export class CollectionNode {
 }
 
 export class LibraryTreeView {
-    treeView: TreeView;
-    collections: Collection[];
-    collectionNodes: CollectionNode[];
+    static treeView: TreeView;
+    static collectionNodes: CollectionNode[];
 
-    constructor(element: HTMLElement, collections: Collection[]) {
-        this.collections = collections;
-        this.collectionNodes = this.collections.map(collection => new CollectionNode(collection));
+    static init(element: HTMLElement) {
+        this.collectionNodes = Collection.rootCollections.map(child => new CollectionNode(Collection.byID(child)!));
         this.treeView = new TreeView(element, [
             new TreeViewChildNode({
                 labelText: "Local Library",
@@ -69,14 +67,9 @@ export class LibraryTreeView {
         ]);
     }
 
-    localLibraryClick() {
+    static localLibraryClick() {
         MusicBrowserView.setCollection(null);
         AlbumDisplay.hide();
         MusicBrowserView.show();
     }
-}
-
-export function init() {
-    const sidebar: HTMLElement = document.querySelector(".sidebar")!;
-    new LibraryTreeView(sidebar, Library.collections);
 }

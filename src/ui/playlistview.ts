@@ -253,7 +253,6 @@ export class PlaylistView {
 
     private static playHandler() {
         const index = this.selectableList.getSelected()[0];
-        console.log(index);
         Playlist.changeTrack(index);
         Player.play();
     }
