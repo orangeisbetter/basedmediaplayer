@@ -26,7 +26,7 @@ if ('serviceWorker' in navigator) {
 }
 
 async function initDB() {
-    db = await openDB("music-library", 2, {
+    db = await openDB("music-library", 3, {
         upgrade(db, oldVersion, _newVersion, transaction) {
             if (oldVersion < 1) {
                 db.createObjectStore("albums", { keyPath: "id" });
@@ -61,11 +61,13 @@ async function initDB() {
                     trackIds: [],
                     parent: 0
                 });
+            }
 
+            if (oldVersion < 3) {
                 const configStore = transaction.objectStore("config");
                 configStore.put("albums", "browser_mode");
                 configStore.put("album_artist", "browser_album_sort_mode");
-                configStore.put(undefined, "browser_track_sort_mode");
+                configStore.put("", "browser_track_sort_mode");
             }
         }
     });
