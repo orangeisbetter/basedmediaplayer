@@ -5,12 +5,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy" content="media-src 'self' blob:;">
-    <title>Nothing is playing</title>
+    <title>Based Media Player</title>
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
     <link rel="shortcut icon" href="bmp.png" type="image/png">
     <script src="https://code.iconify.design/iconify-icon/3.0.0/iconify-icon.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/mp3tag.js@latest/dist/mp3tag.min.js"></script>
     <script src="dist/main.js"></script>
 </head>
 
@@ -62,6 +61,15 @@
             <td></td>
         </tr>
     </template>
+    <template id="template_release_notes_entry">
+        <h2>Version <span id="version"></span></h2>
+        <h3>New Features</h3>
+        <ul id="features"></ul>
+        <h3>Changes</h3>
+        <ul id="changes"></ul>
+        <h3>Bug Fixes / Improvements</h3>
+        <ul id="bug_fixes"></ul>
+    </template>
     <dialog style="width: 400px" id="load_dialog">
         <div class="content">
             <div>Loading music library...</div>
@@ -69,35 +77,74 @@
             <div style="text-align: center;" id="loading_lbl"></div>
         </div>
     </dialog>
-    <dialog style="width: 500px" id="release_notes_dialog">
-        <div class="content">
-            <h2>Release Notes</h2>
-            <p><span id="name"></span> version <span id="version"></span> release notes</p>
-            <h3>New Features</h3>
-            <ul id="features"></ul>
-            <h3>Changes</h3>
-            <ul id="changes"></ul>
-            <h3>Bug Fixes / Improvements</h3>
-            <ul id="bug_fixes"></ul>
+    <dialog style="width: 600px; overflow-y: hidden" id="release_notes_dialog">
+        <div class="content" style="overflow-y: auto">
+            <h2>Based Media Player</h2>
+            <p>Release notes</p>
+            <div id="notes"></div>
         </div>
         <div class="button-bar">
             <div class="glue"></div>
             <button>Close</button>
         </div>
     </dialog>
+    <dialog style="width: 600px" id="playver">
+        <div class="content">
+            <div style="display: flex; flex-direction: row; gap: 1em">
+                <img src="bmp.svg" alt="">
+                <div style="flex: 1;">
+                    <h2 style="margin-block-end: 0">Based Media Player</h2>
+                    <p style="margin-block-start: 0">Version <span class="version"></span></p>
+                    <p>No bloat. Built with actual use in mind.</p>
+                    <p>Please report bugs, suggestions, and other feedback to <a href="mailto:feedback@orangeisbetter.net">feedback@orangeisbetter.net</a>, or create an issue on github at <a href="https://github.com/orangeisbetter/basedmediaplayer" target="_blank">https://github.com/orangeisbetter/basedmediaplayer</a>.</p>
+                    <p>Created by Thomas Feyen</p>
+                </div>
+            </div>
+        </div>
+        <div class="button-bar">
+            <div class="glue"></div>
+            <button onclick="playver.close()">Close</button>
+        </div>
+    </dialog>
     <aside class="sidebar"></aside>
     <header>
         <div id="menubar"></div>
+        <!-- <div style="border-left: 1px solid gray; height: 16px"></div> -->
+        <!-- <div class="breadcrumbs" style="display: flex; flex-direction: row; align-items: center;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" style="rotate: 90deg">
+                <path fill="currentColor" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6l-6 6z" />
+            </svg>
+            &nbsp;
+            <a>Local Library</a>
+            &nbsp;
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" style="rotate: 90deg">
+                <path fill="currentColor" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6l-6 6z" />
+            </svg>
+            &nbsp;
+            <a>Soundtrack</a>
+            &nbsp;
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" style="rotate: 90deg">
+                <path fill="currentColor" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6l-6 6z" />
+            </svg>
+            &nbsp;
+            <a>The Polar Express (Recording Sessions)</a>
+        </div> -->
         <div style="border-left: 1px solid gray; height: 16px"></div>
         <div>Please report bugs or suggestions to <a href="mailto:feedback@orangeisbetter.net">feedback@orangeisbetter.net</a></div>
-        <div class="breadcrumbs" style="display: flex; align-items: center;"></div>
         <div class="glue"></div>
-        <div id="main_view_select">
+        <div id="main_view_select" style="display: none">
             <span>View as</span>
             <select>
                 <option value="albums">Albums</option>
                 <!-- <option value="artists">Artists</option> -->
                 <option value="tracks">Tracks</option>
+            </select>
+        </div>
+        <div id="main_view_sort" style="display: none">
+            <span>Sort by</span>
+            <select>
+                <option value="album_artist">Album artist</option>
+                <option value="album_name">Album name</option>
             </select>
         </div>
         <input type="search" id="search_bar" placeholder="Start typing to search...">
@@ -181,7 +228,7 @@
             <div class="current-media">
                 <span class="track-title ellipsis" id="current_track_title_lbl">Nothing is playing</span>
                 <span class="track-time"></span>
-                <div class="progress-bar" style="--progress: 0%">
+                <div class="progress-bar disabled" style="--progress: 0%">
                     <div class="hovercatch"></div>
                     <div class="meter"></div>
                     <div class="thumb"></div>

@@ -106,14 +106,14 @@ export class Library {
 
         let countDone = 0;
         const protos: (ProtoTrack | null)[] = await asyncPool(256, items, async ({ path, handle }) => {
-            const proto = await Track.loadFile(handle, path);
+            const proto = await Track.getTrackMetadata(handle, path);
             countDone++;
             progress_bar.value = countDone;
             loading_lbl.textContent = `${countDone} / ${items.length} files scanned`;
             return proto;
         });
 
-        loading_lbl.textContent = `Construcing albums from ${protos.length} discovered tracks`;
+        loading_lbl.textContent = `Constructing albums from ${protos.length} discovered tracks`;
 
         // Build albums from tracks
         for (const proto of protos) {
@@ -162,5 +162,9 @@ export class Library {
         await Album.saveAll(db);
 
         load_dialog.close();
+    }
+
+    static async rescanLibrary(db: IDBPDatabase) {
+
     }
 }

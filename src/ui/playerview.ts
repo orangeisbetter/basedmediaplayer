@@ -239,6 +239,8 @@ export class PlayerView {
         this.trackProgressBar.style.setProperty('--progress', `0%`);
 
         if (id === null) {
+            this.trackProgressBar.classList.add("disabled");
+
             this.playPauseButton.disabled = true;
             this.trackTitleLabel.textContent = "Nothing is playing";
             this.trackTimeLabel.textContent = "";
@@ -259,6 +261,8 @@ export class PlayerView {
 
         const track = Track.byID(id);
         if (!track) return;
+
+        this.trackProgressBar.classList.remove("disabled");
 
         this.playPauseButton.disabled = false;
         this.trackTitleLabel.textContent = track.title;

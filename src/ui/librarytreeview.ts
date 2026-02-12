@@ -38,7 +38,7 @@ export class LibraryTreeView {
         this.collectionNodes = Collection.rootCollections.map(child => new CollectionNode(Collection.byID(child)!));
         this.treeView = new TreeView(element, [
             new TreeViewChildNode({
-                labelText: "Local Library",
+                labelText: "Local library",
                 iconName: "mdi:library-music",
                 onClick: () => this.localLibraryClick(),
                 // children: [

@@ -12,6 +12,7 @@ import { MenuSystem } from "./ui/menu.ts";
 import { SelectableList } from "./ui/selectablelist.ts";
 import { MenuBar } from "./ui/menubar.ts";
 import { Library } from "./library.ts";
+import { getVersion } from "./ui/releasenotes.ts";
 
 /** @type {import("idb").IDBPDatabase} */
 let db;
@@ -26,7 +27,7 @@ if ('serviceWorker' in navigator) {
 
 async function initDB() {
     db = await openDB("music-library", 2, {
-        upgrade(db, oldVersion) {
+        upgrade(db, oldVersion, _newVersion, transaction) {
             if (oldVersion < 1) {
                 db.createObjectStore("albums", { keyPath: "id" });
                 db.createObjectStore("tracks", { keyPath: "id" });
@@ -43,22 +44,36 @@ async function initDB() {
                 collectionStore.put({
                     id: 0,
                     name: "Soundtrack",
-                    trackIds: [0, 1, 2, 3, 4, 5, 6],
+                    trackIds: [],
                     parent: -1
                 });
 
                 collectionStore.put({
                     id: 1,
                     name: "Game",
-                    trackIds: [7, 8, 9, 10],
+                    trackIds: [],
                     parent: 0
                 });
+
+                collectionStore.put({
+                    id: 2,
+                    name: "Movie",
+                    trackIds: [],
+                    parent: 0
+                });
+
+                const configStore = transaction.objectStore("config");
+                configStore.put("albums", "browser_mode");
+                configStore.put("album_artist", "browser_album_sort_mode");
+                configStore.put(undefined, "browser_track_sort_mode");
             }
         }
     });
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
+    document.title = "Nothing is playing";
+
     await initDB();
 
     MenuSystem.init();
@@ -70,6 +85,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     PlaylistView.init();
     PlayerView.init(document.querySelector(".player"));
+
+    getVersion().then(version => document.querySelector(".version").textContent = version);
 
     document.addEventListener("keydown", e => {
         if (e.key === "Escape") {
@@ -84,7 +101,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
     Library.loadLibrary(db).then(async () => {
-        MusicBrowserView.init(document.querySelector(".browser-view"));
+        MusicBrowserView.init(db, document.querySelector(".browser-view"));
         await Collection.loadAll(db);
         LibraryTreeView.init(document.querySelector(".sidebar"));
     });

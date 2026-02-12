@@ -68,7 +68,14 @@ export class AlbumDisplay {
         this.addToPlaylistButton.addEventListener("click", () => this.addToPlaylistHandler());
 
         this.list = SelectableList.register(this.trackTableBody);
-        MenuSystem.setContextMenu(this.trackTableBody, () => this.menu);
+
+        MenuSystem.setContextMenu(this.trackTableBody, () => {
+            if (this.list.getSelected().length > 0) {
+                return this.menu
+            } else {
+                return null;
+            }
+        });
 
         this.hide();
     }

@@ -1,5 +1,6 @@
-{
-    "0.1.0": {
+[
+    {
+        "version": "0.1.0",
         "features": [
             "Implemented playlist shuffling",
             "Added \"Shuffle play\" button to album view",
@@ -12,16 +13,35 @@
             "Added notice dialog informing users of unsupported browsers or insecure contexts"
         ],
         "bug_fixes": [
-            "Removed the ability to seek with the progress bar when there is nothing playing",
+            "Removed the ability to seek with the progress bar when nothing is playing",
             "Changed project from node to deno",
-            "Several under-the-hood improvements and fixes"
+            "Made several under-the-hood improvements and fixes"
         ]
     },
-    "0.1.1": {
+    {
+        "version": "0.1.1",
         "bug_fixes": [
             "Reworked the storage, retrieval, and structure of collections",
             "Fixed a bug where an album with an id of 0 was not able to play",
             "Move library loading logic into its own file"
         ]
+    },
+    {
+        "version": "0.2.0",
+        "features": [
+            "Added \"About\" dialog",
+            "Redesigned Release notes dialog to feature release notes from multiple versions",
+            "Made music browser mode persist between sessions",
+            "Added album sorting modes which persist between sessions"
+        ],
+        "changes": [
+            "Changed styling of menubar items",
+            "Removed displaying progress bar thumb on hover when nothing is playing",
+            "Changed sorting of albums in the music browser to sort by album artist and then album name, instead of the order in which they happened to be scanned",
+            "Disabled pointer cursor and on-hover underline for tree view items that are not clickable",
+            "Disabled context menu from appearing when nothing is selected in the album view",
+            "Made release notes loaded at runtime instead of being bundled into the javascript file",
+            "Increased width of release notes dialog"
+        ]
     }
-}
+]

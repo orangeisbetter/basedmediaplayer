@@ -88,6 +88,7 @@ export class TreeViewChildNode extends TreeViewNode {
         this.childrenElement = this.element.querySelector("ul")!;
 
         if (options.onClick) {
+            this.labelElement.classList.add("active");
             this.labelElement.addEventListener("click", options.onClick.bind(this));
         }
     }

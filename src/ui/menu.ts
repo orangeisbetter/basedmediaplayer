@@ -142,6 +142,8 @@ class MenuView {
 
         switch (options.type) {
             case "direct":
+                this.element.classList.add("direct");
+
                 if (options.x + rect.width < window.innerWidth) {
                     this.element.style.left = `${options.x}px`;
                 } else if (options.x - rect.width >= 0) {
@@ -159,6 +161,8 @@ class MenuView {
                 }
                 break;
             case "menubar":
+                this.element.classList.add("menubar");
+
                 this.element.style.left = `${options.rect.left}px`;
 
                 if (options.rect.bottom + rect.height < window.innerHeight) {
@@ -170,6 +174,8 @@ class MenuView {
                 }
                 break;
             case "submenu":
+                this.element.classList.add("submenu");
+
                 if (options.rect.x + options.rect.width - 3 + rect.width < window.innerWidth) {
                     this.element.style.left = `${options.rect.right - 3}px`;
                 } else if (options.rect.x + 3 - rect.width >= 0) {
@@ -187,6 +193,7 @@ class MenuView {
                 }
                 break;
             case "topbottom":
+                this.element.classList.add("topbottom");
                 break;
         }
 

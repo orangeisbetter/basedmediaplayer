@@ -1,6 +1,8 @@
 import { Menu, MenuSystem } from "./menu.ts";
 import { showReleaseNotesDialog } from "./releasenotes.ts";
 
+declare const playver: HTMLDialogElement;
+
 export class MenuBar {
     private static rootElement: HTMLDivElement;
 
@@ -53,11 +55,12 @@ export class MenuBar {
                             html: "Release notes",
                             click: () => showReleaseNotesDialog()
                         },
-                        // { kind: "separator" },
-                        // {
-                        //     kind: "item",
-                        //     html: "About"
-                        // },
+                        { kind: "separator" },
+                        {
+                            kind: "item",
+                            html: "About",
+                            click: () => playver.showModal()
+                        },
                     ]
                 }
             }
