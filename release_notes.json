@@ -43,5 +43,25 @@
             "Made release notes loaded at runtime instead of being bundled into the javascript file",
             "Increased width of release notes dialog"
         ]
+    },
+    {
+        "version": "0.3.0",
+        "features": [
+            "Made artists a first-class data type",
+            "Added artists view to browser",
+            "Changed library scanning algorithm to load all distinct covers for albums",
+            "Associated each track with its own cover that is indexed into the album's covers",
+            "Made the cover that appears in the play bar be the first cover of the track or the first one of the album if not present",
+            "Added support for loading album covers from cover.* and folder.* image files in the album directory"
+        ],
+        "changes": [
+            "Added support for tracks with multiple artists to support the artists correctly",
+            "Changed media session metadata to correctly report missing information as undefined",
+            "Added focus styling for search bar",
+            "Album sorting changed to ignore articles that precede names"
+        ],
+        "bug_fixes": [
+            "Reduced parallel file loading from 256 to 4 to improve locality and loading times"
+        ]
     }
 ]

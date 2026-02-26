@@ -2,6 +2,8 @@ import { IDBPDatabase } from "idb";
 import { Album } from "./album.ts";
 import { ProtoTrack, Track } from "./track.ts";
 import { asyncPool, ensureReadPermission, FileInfo, getHandlesRecursively } from "./filesystem.ts";
+import { Artist } from "./artist.ts";
+import { arraysEqual } from "./util/arrays.ts";
 
 interface Window {
     showDirectoryPicker: () => Promise<FileSystemDirectoryHandle>
@@ -81,12 +83,20 @@ export class Library {
         });
     }
 
-    static async loadLibrary(db: IDBPDatabase) {
-        if (await db.count("tracks") > 0 && await db.count("albums") > 0) {
+    static async loadLibrary(db: IDBPDatabase, rescan: boolean) {
+        if (await db.count("tracks") > 0 && await db.count("albums") > 0 && !rescan) {
             await Track.loadAll(db);
             await Album.loadAll(db);
+            await Artist.loadAll(db);
+
+            Track.linkToArtists();
+            Album.linkToArtists();
             return;
         }
+
+        db.clear("tracks");
+        db.clear("albums");
+        db.clear("artists");
 
         const albums: Album[] = [];
 
@@ -104,38 +114,74 @@ export class Library {
         const progress_bar = document.getElementById("progress_bar")! as HTMLProgressElement;
         progress_bar.max = items.length;
 
+        const covers: Map<FileSystemDirectoryHandle, Uint8Array> = new Map();
+
         let countDone = 0;
-        const protos: (ProtoTrack | null)[] = await asyncPool(256, items, async ({ path, handle }) => {
-            const proto = await Track.getTrackMetadata(handle, path);
+        const protos: ProtoTrack[] = [];
+        await asyncPool(4, items, async ({ path, handle, dir }) => {
+            const file = await handle.getFile();
+            if (file.type.startsWith("audio")) {
+                const proto = await Track.getTrackMetadata(file, handle, dir, path);
+                if (proto) {
+                    protos.push(proto);
+                }
+            } else if (file.type.startsWith("image") && /^(folder|cover)\..*/i.test(handle.name)) {
+                covers.set(dir, new Uint8Array(await file.arrayBuffer()));
+            }
             countDone++;
             progress_bar.value = countDone;
             loading_lbl.textContent = `${countDone} / ${items.length} files scanned`;
-            return proto;
         });
 
         loading_lbl.textContent = `Constructing albums from ${protos.length} discovered tracks`;
 
         // Build albums from tracks
         for (const proto of protos) {
-            if (!proto) continue;
-
             const albumName = proto.tag.album;
             const albumLower = albumName?.toLowerCase();
 
-            let album = albums.find(album => album.name?.toLowerCase() === albumLower && album.artist === (proto.tag.albumartist ?? proto.tag.artist));
+            const newAlbumArtist = proto.tag.albumartist ? Artist.getOrCreate(proto.tag.albumartist) : undefined;
+
+            let album = albums.find(album => album.name?.toLowerCase() === albumLower && album.artist === newAlbumArtist);
             if (!album) {
                 album = new Album();
                 album.name = albumName;
-                album.artist = proto.tag.albumartist ?? proto.tag.artist;
+                album.artist = newAlbumArtist;
                 albums.push(album);
             }
 
             const track = Track.createFromProtoTrack(proto, album.id);
             album.trackIds.push(track.id);
 
-            if (proto.tag.picture && !album.coverData) {
-                const coverData = proto.tag.picture[0];
-                album.coverData = coverData;
+            const tryNewCover = function (album: Album, track: Track | null, imageData: Uint8Array) {
+                // Check to see if cover is already included
+                let found = false;
+                for (let i = 0; i < album.covers.length; i++) {
+                    const cover = album.covers[i];
+                    if (arraysEqual(imageData, cover)) {
+                        if (track !== null) track.coverIndex ??= i;
+                        found = true;
+                        break;
+                    }
+                }
+
+                if (!found) {
+                    album.covers.push(imageData);
+                    if (track !== null) track.coverIndex ??= album.covers.length - 1;
+                }
+            }
+
+            // Add covers
+            if (proto.tag.picture && proto.tag.picture.length > 0) {
+                // For each embedded cover (could be multiple)
+                for (const picture of proto.tag.picture) {
+                    tryNewCover(album, track, picture.data);
+                }
+            }
+
+            const dirCover = covers.get(proto.dir);
+            if (dirCover !== undefined) {
+                tryNewCover(album, null, dirCover);
             }
         }
 
@@ -157,14 +203,22 @@ export class Library {
         }
 
         loading_lbl.textContent = "Writing library to indexedDB...";
+        progress_bar.removeAttribute("max");
+        progress_bar.removeAttribute("value");
 
-        await Track.saveAll(db);
-        await Album.saveAll(db);
+        await Promise.all([
+            Track.saveAll(db),
+            Album.saveAll(db),
+            Artist.saveAll(db),
+        ]);
+
+        Track.linkToArtists();
+        Album.linkToArtists();
 
         load_dialog.close();
     }
 
-    static async rescanLibrary(db: IDBPDatabase) {
+    static async rescanLibrary(_db: IDBPDatabase) {
 
     }
 }

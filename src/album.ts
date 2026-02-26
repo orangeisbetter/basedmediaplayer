@@ -1,24 +1,23 @@
 import { IDBPDatabase } from "idb";
-import { IPicture } from "music-metadata"
-
-declare const template_album: HTMLTemplateElement;
+import { Artist } from "./artist.ts";
 
 export interface AlbumStore {
     id: number;
     name?: string;
-    artist?: string;
-    coverData?: IPicture;
+    artist?: number;
+    covers: Uint8Array[];
+    // coverData?: IPicture;
     trackIds: number[];
 }
 
 export class Album implements AlbumStore {
     id: number;
     name?: string;
-    artist?: string;
-    coverData?: IPicture;
+    artist?: number;
+    covers: Uint8Array[];
     trackIds: number[];
 
-    private cover?: string;
+    private coverUrls: string[];
 
     static highestID: number = 0;
     static albums: Map<number, Album> = new Map();
@@ -26,7 +25,9 @@ export class Album implements AlbumStore {
     constructor(id?: number) {
         this.id = id === undefined ? Album.highestID++ : id;
         Album.albums.set(this.id, this);
+        this.covers = [];
         this.trackIds = [];
+        this.coverUrls = [];
     }
 
     static createFromStore({ id, ...store }: AlbumStore): Album {
@@ -54,6 +55,15 @@ export class Album implements AlbumStore {
         }
     }
 
+    static linkToArtists() {
+        for (const [id, album] of Album.albums) {
+            const artistId = album.artist;
+            if (!artistId) continue;
+            const artist = Artist.byID(artistId)!;
+            artist.albumIds.push(id);
+        }
+    }
+
     static getAllIds(): number[] {
         return Array.from(Album.albums.keys());
     }
@@ -67,17 +77,26 @@ export class Album implements AlbumStore {
             id: this.id,
             name: this.name,
             artist: this.artist,
-            coverData: this.coverData,
+            covers: this.covers,
             trackIds: this.trackIds
         };
     }
 
-    getCoverURL() {
-        if (!this.coverData) {
-            return "missing.png";
-        } else if (!this.cover) {
-            this.cover = URL.createObjectURL(new Blob([this.coverData.data as BlobPart], { type: this.coverData.format }));
+    getCoverURL(index?: number) {
+        if (index === undefined) {
+            index = 0;
         }
-        return this.cover;
+        if (this.covers.length == 0) {
+            return "missing.png";
+        } else if (!this.coverUrls[index]) {
+            this.coverUrls[index] = URL.createObjectURL(new Blob([this.covers[index] as BlobPart]));
+        }
+        return this.coverUrls[index];
+    }
+
+    getArtistName(): string | undefined {
+        if (this.artist === undefined) return undefined;
+        const artist = Artist.byID(this.artist);
+        return artist?.name;
     }
 }

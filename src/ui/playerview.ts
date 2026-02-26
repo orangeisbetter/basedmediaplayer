@@ -1,4 +1,5 @@
 import { Album } from "../album.ts";
+import { Artist } from "../artist.ts";
 import { PlaybackController } from "../playbackcontroller.ts";
 import { Player } from "../player.ts";
 import { LoopMode, Playlist, PlaylistShuffleEventData, PlaylistTrackChangeEventData } from "../playlist.ts";
@@ -270,8 +271,8 @@ export class PlayerView {
 
         const album = Album.byID(track.albumId)!;
         this.albumNameLabel.textContent = album.name ?? "Unknown Album";
-        this.albumArtistLabel.textContent = album.artist ?? "Unknown Artist";
-        this.albumCoverImage.src = album.getCoverURL();
+        this.albumArtistLabel.textContent = album.getArtistName() ?? "Unknown Artist";
+        this.albumCoverImage.src = album.getCoverURL(track.coverIndex);
         this.albumCoverImage.style.display = "";
 
         if (track.lyrics && track.lyrics?.length > 0) {
@@ -282,12 +283,14 @@ export class PlayerView {
             this.lyricsViewButton.disabled = true;
         }
 
-        document.title = `${track.title} - ${track.artist ?? album.artist ?? "Unknown Artist"}`;
+        const artistString = Artist.getArtistString(track.artists);
+
+        document.title = track.title + `${artistString ? " - " + artistString : ""}`;
 
         navigator.mediaSession.metadata = new MediaMetadata({
             title: track.title,
-            artist: track.artist ?? album.artist ?? "Unknown Artist",
-            album: album.name ?? "Unknown Album",
+            artist: artistString,
+            album: album.name,
             artwork: [{ src: album.getCoverURL() }]
         });
     }

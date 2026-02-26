@@ -1,10 +1,11 @@
-import { IDBPDatabase, IDBPObjectStore } from "idb";
+import { IDBPDatabase } from "idb";
 import { ICommonTagsResult, IFormat, parseBlob } from "music-metadata";
-import { Album } from "./album.ts";
+import { Artist } from "./artist.ts";
 
 export interface ProtoTrack {
     path: string;
     handle: FileSystemFileHandle;
+    dir: FileSystemDirectoryHandle;
     tag: ICommonTagsResult;
     format: IFormat;
 };
@@ -20,11 +21,13 @@ export interface TrackStore {
     disc: number | null;
     no: number | null;
     title: string;
-    artist?: string;
+    artists: number[];
+    featArtists?: string;
     lyrics?: (string | undefined)[];
     date?: string;
     genre?: string[];
     composer?: string[];
+    coverIndex?: number;
 
     userChanged: boolean;
 }
@@ -40,11 +43,13 @@ export class Track implements TrackStore {
     disc: number | null;
     no: number | null;
     title: string;
-    artist?: string;
+    artists: number[];
+    featArtists?: string;
     lyrics?: (string | undefined)[];
     date?: string;
     genre?: string[];
     composer?: string[];
+    coverIndex?: number;
 
     userChanged: boolean;
 
@@ -61,11 +66,14 @@ export class Track implements TrackStore {
         this.disc = store.disc;
         this.no = store.no;
         this.title = store.title;
-        this.artist = store.artist;
+        this.artists = store.artists;
+        this.featArtists = store.featArtists;
         this.lyrics = store.lyrics;
         this.date = store.date;
         this.genre = store.genre;
         this.composer = store.composer;
+        this.coverIndex = store.coverIndex;
+
         this.userChanged = store.userChanged;
 
         Track.tracks.set(this.id, this);
@@ -80,6 +88,19 @@ export class Track implements TrackStore {
     }
 
     static createFromProtoTrack(proto: ProtoTrack, albumId: number): Track {
+        // Handle featuring artists
+        const artists: number[] = [];
+        let featArtists: string | undefined = undefined;
+        if (proto.tag.artists) {
+            for (const artistString of proto.tag.artists) {
+                const [base, feat] = artistString.split(" ft. ", 2);
+                if (feat) {
+                    featArtists = feat;
+                }
+                artists.push(Artist.getOrCreate(base));
+            }
+        }
+
         const track = new Track({
             id: Track.highestID++,
             path: proto.path,
@@ -90,11 +111,13 @@ export class Track implements TrackStore {
             disc: proto.tag.disk.no,
             no: proto.tag.track.no,
             title: proto.tag.title!,
-            artist: proto.tag.artist,
+            artists: artists,
+            featArtists: featArtists,
             lyrics: proto.tag.lyrics?.map(lyrics => lyrics.text),
             date: proto.tag.date,
             genre: proto.tag.genre,
             composer: proto.tag.composer,
+            coverIndex: undefined,
 
             userChanged: false,
         });
@@ -120,6 +143,16 @@ export class Track implements TrackStore {
         }
     }
 
+    static linkToArtists() {
+        for (const [id, track] of Track.tracks) {
+            const artistIds = track.artists;
+            for (const artistId of artistIds) {
+                const artist = Artist.byID(artistId)!;
+                artist.trackIds.push(id);
+            }
+        }
+    }
+
     static byID(id: number): Track | undefined {
         return Track.tracks.get(id);
     }
@@ -139,11 +172,13 @@ export class Track implements TrackStore {
             disc: this.disc,
             no: this.no,
             title: this.title,
-            artist: this.artist,
+            artists: this.artists,
+            featArtists: this.featArtists,
             lyrics: this.lyrics,
             date: this.date,
             genre: this.genre,
             composer: this.composer,
+            coverIndex: this.coverIndex,
 
             userChanged: this.userChanged
         };
@@ -155,14 +190,8 @@ export class Track implements TrackStore {
         return filename.substring(0, lastDotIndex);
     }
 
-    static async getTrackMetadata(handle: FileSystemFileHandle, path: string): Promise<ProtoTrack | null> {
+    static async getTrackMetadata(file: File, handle: FileSystemFileHandle, dir: FileSystemDirectoryHandle, path: string): Promise<ProtoTrack | null> {
         try {
-            const file = await handle.getFile();
-
-            if (!file.type.startsWith("audio")) {
-                return null;
-            }
-
             const { common, format } = await parseBlob(file);
 
             const parts = path.split("/", 3);
@@ -182,59 +211,46 @@ export class Track implements TrackStore {
                 }
             }
 
-            return { handle, tag: common, format, path };
+            return { handle, dir, tag: common, format, path };
         } catch {
             return null;
         }
     }
 
-    async updateMetadata(objectStore: IDBPObjectStore<unknown, ["tracks"], "tracks", "readwrite">): Promise<boolean> {
-        // If the user made changes to the metadata explicitly, ignore new file changes. The user is always right.
-        if (this.userChanged) return false;
+    // async updateMetadata(objectStore: IDBPObjectStore<unknown, ["tracks"], "tracks", "readwrite">): Promise<boolean> {
+    //     // If the user made changes to the metadata explicitly, ignore new file changes. The user is always right.
+    //     if (this.userChanged) return false;
 
-        const metadata = await Track.getTrackMetadata(this.handle, this.path);
-        if (metadata === null) {
-            throw new Error("Metadata used to exist but does not anymore! This is a bug.");
-        }
+    //     const metadata = await Track.getTrackMetadata(this.handle, this.path);
+    //     if (metadata === null) {
+    //         throw new Error("Metadata used to exist but does not anymore! This is a bug.");
+    //     }
 
-        const album = Album.byID(this.albumId)!;
-        if (album.name !== metadata.tag.album || album.artist !== metadata.tag.albumartist) {
-            throw new Error("Album info for track changed but this action is not supported yet. Please delete your site data and reload the page to reset your library.");
-        }
+    //     const album = Album.byID(this.albumId)!;
+    //     if (album.name !== metadata.tag.album || album.artist !== metadata.tag.albumartist) {
+    //         throw new Error("Album info for track changed but this action is not supported yet. Please delete your site data and reload the page to reset your library.");
+    //     }
 
-        let modified = false;
+    //     let modified = false;
 
-        if (this.duration !== metadata.format.duration) this.duration = metadata.format.duration!, modified = true;
-        if (this.disc !== metadata.tag.disk.no) this.disc = metadata.tag.disk.no, modified = true;
-        if (this.no !== metadata.tag.track.no) this.no = metadata.tag.track.no, modified = true;
-        if (this.title !== metadata.tag.title!) this.title = metadata.tag.title!, modified = true;
-        if (this.artist !== metadata.tag.artist) this.artist = metadata.tag.artist, modified = true;
+    //     if (this.duration !== metadata.format.duration) this.duration = metadata.format.duration!, modified = true;
+    //     if (this.disc !== metadata.tag.disk.no) this.disc = metadata.tag.disk.no, modified = true;
+    //     if (this.no !== metadata.tag.track.no) this.no = metadata.tag.track.no, modified = true;
+    //     if (this.title !== metadata.tag.title!) this.title = metadata.tag.title!, modified = true;
+    //     if (!Track.arraysEqual(this.artists, metadata.tag.artists?.map(artist => Artist.getOrCreate(artist)) ?? [])) this.artists = metadata.tag.artists?.map(artist => Artist.getOrCreate(artist)) ?? [], modified = true;
 
-        // deno-lint-ignore no-explicit-any
-        function arraysEqual(a?: any[], b?: any[]) {
-            if (a === b) return true;
-            if (!a || !b) return false;
-            if (a.length !== b.length) return false;
+    //     const newLyrics = metadata.tag.lyrics?.map(lyrics => lyrics.text);
+    //     if (!Track.arraysEqual(this.lyrics, newLyrics)) this.lyrics = newLyrics, modified = true;
 
-            for (let i = 0; i < a.length; i++) {
-                if (a[i] !== b[i]) return false;
-            }
+    //     if (this.date !== metadata.tag.date) this.date = metadata.tag.date, modified = true;
+    //     if (this.genre !== metadata.tag.genre) this.genre = metadata.tag.genre, modified = true;
+    //     if (this.composer !== metadata.tag.composer) this.composer = metadata.tag.composer, modified = true;
 
-            return true;
-        }
+    //     if (modified) {
+    //         objectStore.put(this);
+    //         return true;
+    //     }
 
-        const newLyrics = metadata.tag.lyrics?.map(lyrics => lyrics.text);
-        if (!arraysEqual(this.lyrics, newLyrics)) this.lyrics = newLyrics, modified = true;
-
-        if (this.date !== metadata.tag.date) this.date = metadata.tag.date, modified = true;
-        if (this.genre !== metadata.tag.genre) this.genre = metadata.tag.genre, modified = true;
-        if (this.composer !== metadata.tag.composer) this.composer = metadata.tag.composer, modified = true;
-
-        if (modified) {
-            objectStore.put(this);
-            return true;
-        }
-
-        return false;
-    }
+    //     return false;
+    // }
 }

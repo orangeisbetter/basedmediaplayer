@@ -1,4 +1,5 @@
 import { Album } from "../album.ts";
+import { Artist } from "../artist.ts";
 import { Collection } from "../collection.ts";
 import { Player } from "../player.ts";
 import { Playlist } from "../playlist.ts";
@@ -41,13 +42,22 @@ export class AlbumDisplay {
                 html: "Play next",
                 click: () => this.playNext()
             },
+            { kind: "separator" },
             {
                 kind: "item",
                 html: "Add to playlist",
                 click: () => this.addToPlaylist()
             },
+            {
+                kind: "item",
+                html: "Add to collection"
+            },
             { kind: "separator" },
-            { kind: "item", html: "Add to collection" },
+            {
+                kind: "item",
+                html: "Copy metadata as TSV",
+                click: () => this.copyAsTSV()
+            }
         ]
     };
 
@@ -115,7 +125,7 @@ export class AlbumDisplay {
         cover.src = album.getCoverURL();
 
         this.rootElement.querySelector(".album-name")!.textContent = album.name ?? "Unknown Album";
-        this.rootElement.querySelector(".album-artist")!.textContent = album.artist ?? "Unknown Artist";
+        this.rootElement.querySelector(".album-artist")!.textContent = album.getArtistName() ?? "Unknown Artist";
 
         this.rootElement.scroll({ top: 0 });
 
@@ -130,7 +140,7 @@ export class AlbumDisplay {
         cells[0].textContent = track.disc ? `${track.disc}-${track.no}` : `${track.no ?? ""}`;
         cells[1].textContent = track.title;
         cells[2].textContent = convertTime(track.duration);
-        cells[3].textContent = track.artist ?? "";
+        cells[3].textContent = Artist.getArtistString(track.artists) ?? "";
         cells[4].textContent = track.composer?.join(", ") ?? "";
 
         clone.firstElementChild!.addEventListener("dblclick", () => this.playAll(index));
@@ -176,6 +186,26 @@ export class AlbumDisplay {
         const indices = this.list.getSelected();
         const tracks = indices.map(index => this.trackIds[index]);
         Playlist.add(...tracks);
+    }
+
+    private static copyAsTSV() {
+        const indices = this.list.getSelected();
+        const tsvData = indices
+            .map(index => {
+                const track = Track.byID(this.trackIds[index])!;
+                const columns = [
+                    track.disc ?? "",
+                    track.no ?? "",
+                    track.title,
+                    convertTime(track.duration),
+                    track.artists?.join("\\\\") ?? "",
+                    track.composer?.join("\\\\") ?? ""
+                ];
+                return columns.join("\t");
+            })
+            .join("\n");
+
+        navigator.clipboard.writeText(tsvData);
     }
 
     private static playAllHandler() {

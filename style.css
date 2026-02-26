@@ -59,6 +59,12 @@ select {
     background-color: white;
 }
 
+input[type=search]:focus-visible,
+input[type=text]:focus-visible {
+    outline: 2px solid var(--accent-color);
+    outline-offset: -1px;
+}
+
 select {
     padding-right: calc(16px + 8px);
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24'%3E%3Cpath fill='%23000' d='M7.41 8.58L12 13.17l4.59-4.59L18 10l-6 6l-6-6z'/%3E%3C/svg%3E");
@@ -265,6 +271,7 @@ header {
                         max-height: 100%;
                         box-shadow: 2px 2px 6px #0009;
                         cursor: pointer;
+                        image-rendering: crisp-edges;
                     }
                 }
 
@@ -344,6 +351,7 @@ header {
                     grid-area: cover;
                     height: 300px;
                     box-shadow: 4px 4px 12px #0009;
+                    image-rendering: crisp-edges;
                 }
 
                 .album-name {
@@ -505,6 +513,7 @@ table {
             width: 32px;
             height: 32px;
             cursor: pointer;
+            image-rendering: crisp-edges;
         }
 
         .album-name {

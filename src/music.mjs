@@ -13,6 +13,7 @@ import { SelectableList } from "./ui/selectablelist.ts";
 import { MenuBar } from "./ui/menubar.ts";
 import { Library } from "./library.ts";
 import { getVersion } from "./ui/releasenotes.ts";
+import { Artist } from "./artist.ts";
 
 /** @type {import("idb").IDBPDatabase} */
 let db;
@@ -25,8 +26,13 @@ if ('serviceWorker' in navigator) {
     })
 }
 
+/**
+ * 
+ * @returns {boolean}
+ */
 async function initDB() {
-    db = await openDB("music-library", 3, {
+    let rescan = false;
+    db = await openDB("music-library", 4, {
         upgrade(db, oldVersion, _newVersion, transaction) {
             if (oldVersion < 1) {
                 db.createObjectStore("albums", { keyPath: "id" });
@@ -41,26 +47,26 @@ async function initDB() {
             if (oldVersion < 2) {
                 const collectionStore = db.createObjectStore("collections", { keyPath: "id" });
 
-                collectionStore.put({
-                    id: 0,
-                    name: "Soundtrack",
-                    trackIds: [],
-                    parent: -1
-                });
+                // collectionStore.put({
+                //     id: 0,
+                //     name: "Soundtrack",
+                //     trackIds: [],
+                //     parent: -1
+                // });
 
-                collectionStore.put({
-                    id: 1,
-                    name: "Game",
-                    trackIds: [],
-                    parent: 0
-                });
+                // collectionStore.put({
+                //     id: 1,
+                //     name: "Game",
+                //     trackIds: [],
+                //     parent: 0
+                // });
 
-                collectionStore.put({
-                    id: 2,
-                    name: "Movie",
-                    trackIds: [],
-                    parent: 0
-                });
+                // collectionStore.put({
+                //     id: 2,
+                //     name: "Movie",
+                //     trackIds: [],
+                //     parent: 0
+                // });
             }
 
             if (oldVersion < 3) {
@@ -69,14 +75,23 @@ async function initDB() {
                 configStore.put("album_artist", "browser_album_sort_mode");
                 configStore.put("", "browser_track_sort_mode");
             }
+
+            if (oldVersion < 4) {
+                db.createObjectStore("artists", { keyPath: "id" });
+
+                // Library rescan necessary
+                rescan = true;
+            }
         }
     });
+
+    return rescan;
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
     document.title = "Nothing is playing";
 
-    await initDB();
+    const rescan = await initDB();
 
     MenuSystem.init();
     MenuBar.init(document.querySelector("#menubar"));
@@ -94,15 +109,17 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (e.key === "Escape") {
             e.preventDefault();
             SelectableList.clearActive();
-        } else if (e.key === "a" && e.ctrlKey) {
-            e.preventDefault();
-            SelectableList.selectAll();
+        } else if (e.ctrlKey) {
+            if (e.key === "a") {
+                e.preventDefault();
+                SelectableList.selectAll();
+            }
         } else if (e.key.length === 1 && e.key !== " ") {
             search_bar.focus();
         }
     });
 
-    Library.loadLibrary(db).then(async () => {
+    Library.loadLibrary(db, rescan).then(async () => {
         MusicBrowserView.init(db, document.querySelector(".browser-view"));
         await Collection.loadAll(db);
         LibraryTreeView.init(document.querySelector(".sidebar"));

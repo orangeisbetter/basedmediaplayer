@@ -61,6 +61,13 @@
             <td></td>
         </tr>
     </template>
+    <template id="template_artist_list_item">
+        <tr>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+    </template>
     <template id="template_release_notes_entry">
         <h2>Version <span id="version"></span></h2>
         <h3>New Features</h3>
@@ -136,7 +143,7 @@
             <span>View as</span>
             <select>
                 <option value="albums">Albums</option>
-                <!-- <option value="artists">Artists</option> -->
+                <option value="artists">Artists</option>
                 <option value="tracks">Tracks</option>
             </select>
         </div>
@@ -151,8 +158,19 @@
     </header>
     <div class="main-view">
         <div class="browser-view">
-            <div class="albums-list" id="albums_list"></div>
-            <div class="artists-list"></div>
+            <div class="albums-list"></div>
+            <div class="artists-list">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Albums</th>
+                            <th>Tracks</th>
+                        </tr>
+                    </thead>
+                    <tbody class="selectable-list"></tbody>
+                </table>
+            </div>
             <div class="tracks-list">
                 <table>
                     <thead>
@@ -165,7 +183,7 @@
                             <th width="200">Artist</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody class="selectable-list">
                     </tbody>
                 </table>
             </div>
@@ -175,7 +193,7 @@
                 <div class="album-info">
                     <img class="album-cover">
                     <div class="album-name"></div>
-                    <div class="album-artist"></div>
+                    <a class="album-artist"></a>
                     <div class="actions">
                         <button id="play_all_btn">Play all</button>
                         <button id="shuffle_play_btn">Shuffle play</button>

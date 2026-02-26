@@ -6,9 +6,13 @@ import { Playlist } from "../playlist.ts";
 import { convertTime } from "../time.ts";
 import { Track } from "../track.ts";
 import { AlbumDisplay } from "./albumdisplay.ts";
+import { CompareEntry, CompareFunction, compareSmartAlpha, compareStack, compareUndefinedLast, numberCompare } from "../util/sort.ts";
+import { Artist } from "../artist.ts";
+import { SelectableList } from "./selectablelist.ts";
 
 declare const template_album: HTMLTemplateElement;
 declare const template_track_list_item: HTMLTemplateElement;
+declare const template_artist_list_item: HTMLTemplateElement;
 
 type AlbumClickHandler = (albumId: number, collection: Collection) => void;
 type BrowserMode = "artists" | "albums" | "tracks";
@@ -24,8 +28,12 @@ export class MusicBrowserView {
     private static rootElement: HTMLDivElement;
 
     private static albumsList: HTMLDivElement;
+
     private static artistsList: HTMLDivElement;
+    private static artistsSelList: SelectableList;
+
     private static tracksList: HTMLDivElement;
+    private static tracksSelList: SelectableList;
 
     // private static breadcrumbs: HTMLDivElement;
 
@@ -50,8 +58,14 @@ export class MusicBrowserView {
         this.rootElement = element;
 
         this.albumsList = this.rootElement.querySelector(".albums-list")!;
+
         this.artistsList = this.rootElement.querySelector(".artists-list")!;
+        const artistTableBody = this.artistsList.querySelector("tbody")!;
+        this.artistsSelList = SelectableList.register(artistTableBody);
+
         this.tracksList = this.rootElement.querySelector(".tracks-list")!;
+        const trackTableBody = this.tracksList.querySelector("tbody")!;
+        this.tracksSelList = SelectableList.register(trackTableBody);
 
         // this.breadcrumbs = document.querySelector("header > .breadcrumbs");
         this.modeContainer = document.querySelector("header #main_view_select")!;
@@ -95,7 +109,7 @@ export class MusicBrowserView {
 
             switch (browserMode) {
                 case "artists":
-                    // ???
+                    Promise.resolve().then(() => this.update());
                     break;
                 case "albums":
                     albumSort.then(() => this.update());
@@ -118,6 +132,7 @@ export class MusicBrowserView {
     static updateSortComponent() {
         switch (this.browserMode) {
             case "artists":
+                this.sortContainer.style.display = "none";
                 break;
             case "albums":
                 this.sortContainer.style.display = "";
@@ -164,36 +179,24 @@ export class MusicBrowserView {
         const albumIds = this.collection ? Array.from(this.collection.getAlbumIds()) : Album.getAllIds();
 
         const albums = albumIds.map(albumId => Album.byID(albumId)!);
+
+        let compareFn: CompareFunction<Album>;
         switch (this.albumSortMode) {
             case "album_name":
-                albums.sort((a, b) => {
-                    if (a.name !== b.name) {
-                        if (a.name === undefined) return 1;
-                        if (b.name === undefined) return -1;
-                        return a.name.localeCompare(b.name);
-                    }
-
-                    return a.id - b.id;
-                });
+                compareFn = compareStack([
+                    new CompareEntry(album => album.name, compareUndefinedLast(compareSmartAlpha)),
+                    new CompareEntry(album => album.id, numberCompare)
+                ]);
                 break;
             case "album_artist":
-                albums.sort((a, b) => {
-                    if (a.artist !== b.artist) {
-                        if (a.artist === undefined) return 1;
-                        if (b.artist === undefined) return -1;
-                        return a.artist.localeCompare(b.artist);
-                    }
-
-                    if (a.name !== b.name) {
-                        if (a.name === undefined) return 1;
-                        if (b.name === undefined) return -1;
-                        return a.name.localeCompare(b.name);
-                    }
-
-                    return a.id - b.id;
-                });
+                compareFn = compareStack([
+                    new CompareEntry(album => album.getArtistName(), compareUndefinedLast(compareSmartAlpha)),
+                    new CompareEntry(album => album.name, compareUndefinedLast(compareSmartAlpha)),
+                    new CompareEntry(album => album.id, numberCompare)
+                ]);
                 break;
         }
+        albums.sort(compareFn);
 
         this.albumsList.innerHTML = "";
 
@@ -203,20 +206,61 @@ export class MusicBrowserView {
     }
 
     static showArtists() {
-        throw new Error("Not implemented");
+        let artistIds;
+
+        if (this.collection) {
+            const artistSet = new Set<number>();
+
+            const albumIds = Array.from(this.collection.getAlbumIds());
+            for (const albumId of albumIds) {
+                const album = Album.byID(albumId)!;
+                if (album.artist) artistSet.add(album.artist);
+            }
+
+            const trackIds = Array.from(this.collection.getTrackIds());
+            for (const trackId of trackIds) {
+                const track = Track.byID(trackId)!;
+                track.artists.forEach(artist => artistSet.add(artist));
+            }
+
+            artistIds = Array.from(artistSet);
+        } else {
+            artistIds = Array.from(Artist.artists.keys());
+        }
+
+        const artists = artistIds.map(artistId => Artist.byID(artistId)!);
+        const compareFn: CompareFunction<Artist> = compareStack([
+            new CompareEntry(artist => artist.name, compareUndefinedLast(compareSmartAlpha)),
+            new CompareEntry(artist => artist.id, numberCompare)
+        ]);
+        artists.sort(compareFn);
+
+        const tbody = this.artistsList.querySelector("tbody")!;
+        tbody.innerHTML = "";
+
+        for (const artist of artists) {
+            tbody.appendChild(this.getArtistElement(artist));
+        }
     }
 
     static showTracks() {
         const allTracks = Array.from(Track.getAllIds());
         const collectionTracks = this.collection?.trackIds;
-        const tracks = this.collection ? allTracks.filter(x => collectionTracks!.has(x)) : allTracks;
+        const trackIds = this.collection ? allTracks.filter(x => collectionTracks!.has(x)) : allTracks;
+
+        const tracks = trackIds.map(trackId => Track.byID(trackId)!);
+        const compareFn: CompareFunction<Track> = compareStack([
+            new CompareEntry(track => Album.byID(track.albumId)!.getArtistName(), compareUndefinedLast(compareSmartAlpha)),
+            new CompareEntry(track => Album.byID(track.albumId)!.name, compareUndefinedLast(compareSmartAlpha)),
+            new CompareEntry(track => track.disc, (a, b) => (a ?? 0) - (b ?? 0)),
+            new CompareEntry(track => track.no, (a, b) => (a ?? 0) - (b ?? 0)),
+        ]);
+        tracks.sort(compareFn);
 
         const tbody = this.tracksList.querySelector("tbody")!;
-
         tbody.innerHTML = "";
 
-        for (const trackId of tracks) {
-            const track = Track.byID(trackId)!;
+        for (const track of tracks) {
             const album = Album.byID(track.albumId)!;
             tbody.appendChild(this.getTrackElement(album, track));
         }
@@ -235,8 +279,10 @@ export class MusicBrowserView {
         albumName.addEventListener("click", () => AlbumDisplay.displayAlbum(album.id, this.collection));
 
         const albumArtist: HTMLElement = clone.querySelector(".album-artist")!;
-        albumArtist.textContent = album.artist ?? DEFAULT_ARTIST_NAME;
-        albumArtist.title = album.artist ?? DEFAULT_ARTIST_NAME;
+        const albumArtistName = album.getArtistName() ?? DEFAULT_ARTIST_NAME;
+        albumArtist.textContent = albumArtistName;
+        albumArtist.title = albumArtistName;
+        // albumArtist.addEventListener("click", () => ArtistDisplay.displayArtist(albumArtist.id, this.collection));
 
         return clone;
     }
@@ -246,17 +292,28 @@ export class MusicBrowserView {
 
         const cells = clone.querySelectorAll("td");
         cells[0].title = cells[0].textContent = album.name ?? DEFAULT_ALBUM_NAME;
-        cells[1].title = cells[1].textContent = album.artist ?? DEFAULT_ARTIST_NAME;
+        cells[1].title = cells[1].textContent = album.getArtistName() ?? DEFAULT_ARTIST_NAME;
         cells[2].title = cells[2].textContent = track.disc ? `${track.disc}-${track.no}` : `${track.no ?? ""}`;
         cells[3].title = cells[3].textContent = track.title;
         cells[4].title = cells[4].textContent = convertTime(track.duration);
-        cells[5].title = cells[5].textContent = track.artist ?? "";
+        cells[5].title = cells[5].textContent = Artist.getArtistString(track.artists) ?? "";
 
         clone.firstElementChild!.addEventListener("dblclick", () => {
             Playlist.add(track.id);
             Playlist.skipToEnd();
             Player.play();
         });
+
+        return clone;
+    }
+
+    private static getArtistElement(artist: Artist): DocumentFragment {
+        const clone = document.importNode(template_artist_list_item.content, true);
+
+        const cells = clone.querySelectorAll("td");
+        cells[0].title = cells[0].textContent = artist.name;
+        cells[1].textContent = String(artist.albumIds.length);
+        cells[2].textContent = String(artist.trackIds.length);
 
         return clone;
     }

@@ -1,11 +1,12 @@
 export type FileInfo = {
     path: string;
-    handle: FileSystemFileHandle
+    handle: FileSystemFileHandle,
+    dir: FileSystemDirectoryHandle
 };
 
-export async function* getHandlesRecursively(entry: FileSystemHandle, path: string = ""): AsyncGenerator<FileInfo, void, unknown> {
+export async function* getHandlesRecursively(entry: FileSystemHandle, dir: FileSystemDirectoryHandle | null = null, path: string = ""): AsyncGenerator<FileInfo, void, unknown> {
     if (entry.kind === "file") {
-        yield { path, handle: entry as FileSystemFileHandle };
+        yield { path, handle: entry as FileSystemFileHandle, dir: dir! };
         return;
     }
 
@@ -13,7 +14,7 @@ export async function* getHandlesRecursively(entry: FileSystemHandle, path: stri
     // deno-lint-ignore no-explicit-any
     for await (const handle of (entry as any).values()) {
         const nextPath = path ? `${path}/${handle.name}` : handle.name;
-        yield* getHandlesRecursively(handle, nextPath);
+        yield* getHandlesRecursively(handle, entry as FileSystemDirectoryHandle, nextPath);
     }
 }
 
