@@ -1,11 +1,11 @@
 import { Album } from "../album.ts";
 import { Artist } from "../artist.ts";
+import { MusicBrowser } from "../musicbrowser.ts";
 import { PlaybackController } from "../playbackcontroller.ts";
 import { Player } from "../player.ts";
 import { LoopMode, Playlist, PlaylistShuffleEventData, PlaylistTrackChangeEventData } from "../playlist.ts";
 import { convertTime } from "../time.ts";
 import { Track } from "../track.ts";
-import { AlbumDisplay } from "./albumdisplay.ts";
 import { PlaylistView } from "./playlistview.ts";
 
 export class PlayerView {
@@ -33,6 +33,8 @@ export class PlayerView {
     private static loopIcon: HTMLElement;
 
     private static lyricsPanel: HTMLElement;
+
+    private static trackId: number | null = null;
 
     constructor() {
         throw Error("This static class cannot be instantiated.");
@@ -68,8 +70,16 @@ export class PlayerView {
         this.skipPreviousButton.addEventListener("click", () => PlaybackController.skipPreviousAndPlay());
         this.skipNextButton.addEventListener("click", () => PlaybackController.skipNextAndPlay());
 
-        this.albumCoverImage.addEventListener("click", () => AlbumDisplay.displayAlbum(Player.getCurrentTrack()!.albumId, null));
-        this.albumNameLabel.addEventListener("click", () => AlbumDisplay.displayAlbum(Player.getCurrentTrack()!.albumId, null));
+        const albumClick = function () {
+            const track = Player.getCurrentTrack();
+            if (track === null) return;
+            MusicBrowser.navigate({
+                albumId: track.albumId
+            });
+        }
+
+        this.albumCoverImage.addEventListener("click", albumClick);
+        this.albumNameLabel.addEventListener("click", albumClick);
 
         this.playlistToggleButton.addEventListener("click", PlaylistView.toggleVisibility);
         this.lyricsViewButton.addEventListener("click", () => {
@@ -192,6 +202,27 @@ export class PlayerView {
         Player.events.timeChange.addListener(this.timeChangeHandler.bind(this));
         Player.events.play.addListener(this.playHandler.bind(this));
         Player.events.pause.addListener(this.pauseHandler.bind(this));
+
+        MusicBrowser.attachObserver(() => this.observerHandler());
+    }
+
+    private static observerHandler() {
+        // this is here because the title updates properly but the browser doesn't think it changed, so
+        // we need to do an explicit change manually om lol lmao rofl
+        document.title = "Based Media Player";
+        setTimeout(() => this.updateTitle(), 0);
+    }
+
+    private static updateTitle() {
+        console.log("updating title");
+        if (this.trackId) {
+            const track = Track.byID(this.trackId)!;
+
+            const artistString = Artist.getArtistString(track.artists);
+            document.title = track.title + `${artistString ? " - " + artistString : ""}`;
+        } else {
+            document.title = "Nothing is playing";
+        }
     }
 
     private static skipButtonCheck() {
@@ -236,6 +267,8 @@ export class PlayerView {
     }
 
     private static trackChangeHandler({ id }: PlaylistTrackChangeEventData) {
+        this.trackId = id;
+
         this.playPauseIcon.setAttribute("icon", "mdi:play");
         this.trackProgressBar.style.setProperty('--progress', `0%`);
 
@@ -283,15 +316,13 @@ export class PlayerView {
             this.lyricsViewButton.disabled = true;
         }
 
-        const artistString = Artist.getArtistString(track.artists);
-
-        document.title = track.title + `${artistString ? " - " + artistString : ""}`;
+        this.updateTitle();
 
         navigator.mediaSession.metadata = new MediaMetadata({
             title: track.title,
-            artist: artistString,
+            artist: Artist.getArtistString(track.artists),
             album: album.name,
-            artwork: [{ src: album.getCoverURL() }]
+            artwork: [{ src: album.getCoverURL(track.coverIndex) }]
         });
     }
 

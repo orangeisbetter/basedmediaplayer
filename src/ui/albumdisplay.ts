@@ -1,12 +1,12 @@
 import { Album } from "../album.ts";
 import { Artist } from "../artist.ts";
 import { Collection } from "../collection.ts";
+import { BrowserState, MusicBrowser } from "../musicbrowser.ts";
 import { Player } from "../player.ts";
 import { Playlist } from "../playlist.ts";
 import { convertTime } from "../time.ts";
 import { Track } from "../track.ts";
 import { MenuSystem, Menu } from "./menu.ts";
-import { MusicBrowserView } from "./musicbrowserview.ts";
 import { SelectableList } from "./selectablelist.ts";
 
 declare const template_album_view_track: HTMLTemplateElement;
@@ -19,8 +19,8 @@ export class AlbumDisplay {
     private static addToPlaylistButton: HTMLButtonElement;
     private static trackTableBody: HTMLTableSectionElement;
 
-    private static albumId: number | null = null;
     private static collection: Collection | null = null;
+    private static albumId: number | null = null;
 
     private static trackIds: number[] = [];
     private static list: SelectableList;
@@ -87,7 +87,24 @@ export class AlbumDisplay {
             }
         });
 
-        this.hide();
+        MusicBrowser.attachObserver(state => this.browserObserver(state));
+    }
+
+    private static browserObserver(state: BrowserState) {
+        if (state.albumId === null) {
+            this.hide();
+            return;
+        } else {
+            this.show();
+        }
+
+        if (state.collection === this.collection && state.albumId === this.albumId) {
+            return;
+        }
+
+        this.collection = state.collection;
+        this.albumId = state.albumId;
+        this.displayAlbum();
     }
 
     static show() {
@@ -98,20 +115,17 @@ export class AlbumDisplay {
         this.rootElement.style.display = "none";
     }
 
-    static displayAlbum(albumId: number, collection: Collection | null) {
-        const album = Album.byID(albumId);
+    private static displayAlbum() {
+        const album = Album.byID(this.albumId!);
 
         if (!album) {
-            throw new Error(`Album with id ${albumId} does not exist!`);
+            throw new Error(`Album with id ${this.albumId} does not exist!`);
         }
-
-        this.albumId = albumId;
-        this.collection = collection;
 
         this.trackTableBody.innerHTML = "";
 
-        const collectionTracks = collection?.getTrackIds();
-        this.trackIds = collection ? album.trackIds.filter(x => collectionTracks!.has(x)) : album.trackIds;
+        const collectionTracks = this.collection?.getTrackIds();
+        this.trackIds = this.collection ? album.trackIds.filter(x => collectionTracks!.has(x)) : album.trackIds;
 
         for (let index = 0; index < this.trackIds.length; index++) {
             const track = Track.byID(this.trackIds[index]);
@@ -125,12 +139,12 @@ export class AlbumDisplay {
         cover.src = album.getCoverURL();
 
         this.rootElement.querySelector(".album-name")!.textContent = album.name ?? "Unknown Album";
-        this.rootElement.querySelector(".album-artist")!.textContent = album.getArtistName() ?? "Unknown Artist";
+        this.rootElement.querySelector("#album-artist")!.textContent = album.getArtistName() ?? "Unknown Artist";
+
+        const duration = this.trackIds.reduce((prev, current) => prev + Track.byID(current)!.duration, 0);
+        this.rootElement.querySelector("#derived-info")!.textContent = `${this.trackIds.length} tracks • ${convertTime(duration)}`;
 
         this.rootElement.scroll({ top: 0 });
-
-        MusicBrowserView.hide();
-        this.show();
     }
 
     private static getTrackElement(index: number, track: Track): DocumentFragment {

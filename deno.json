@@ -12,6 +12,7 @@
     "music-metadata": "npm:music-metadata@11.10.3"
   },
   "tasks": {
-    "build": "deno bundle --platform browser --minify --sourcemap --watch src/music.mjs -o dist/main.js"
+    "dev": "deno bundle --platform browser --minify --sourcemap --watch src/music.ts -o dist/main.js",
+    "build": "deno bundle --platform browser --minify --sourcemap src/music.ts -o dist/main.js"
   }
 }

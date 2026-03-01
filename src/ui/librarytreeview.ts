@@ -1,7 +1,6 @@
-import { MusicBrowserView } from "./musicbrowserview.ts";
 import { Collection } from "../collection.ts";
 import { TreeView, TreeViewChildNode, TreeViewChildNodeClickHandler } from "./treeview.ts";
-import { AlbumDisplay } from "./albumdisplay.ts";
+import { MusicBrowser } from "../musicbrowser.ts";
 
 export class CollectionNode {
     collection: Collection;
@@ -20,9 +19,9 @@ export class CollectionNode {
     }
 
     click() {
-        MusicBrowserView.setCollection(this.collection);
-        AlbumDisplay.hide();
-        MusicBrowserView.show();
+        MusicBrowser.navigate({
+            collection: this.collection,
+        });
     }
 
     collectionsClickHandler: TreeViewChildNodeClickHandler = function () {
@@ -68,8 +67,6 @@ export class LibraryTreeView {
     }
 
     static localLibraryClick() {
-        MusicBrowserView.setCollection(null);
-        AlbumDisplay.hide();
-        MusicBrowserView.show();
+        MusicBrowser.navigate({});
     }
 }

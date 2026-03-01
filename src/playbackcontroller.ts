@@ -1,5 +1,5 @@
-import { Player } from "./player";
-import { Playlist } from "./playlist";
+import { Player } from "./player.ts";
+import { Playlist } from "./playlist.ts";
 
 export class PlaybackController {
     static init() {
@@ -8,7 +8,9 @@ export class PlaybackController {
     }
 
     private static onTrackChange({ id }: { id: number | null }) {
-        Player.changeTrack(id);
+        if (id !== null) {
+            Player.changeTrack(id);
+        }
     }
 
     private static onTrackFinished() {

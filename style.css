@@ -224,6 +224,10 @@ header {
 
     .breadcrumbs {
         overflow: hidden;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 4px;
 
         a {
             overflow: hidden;
@@ -340,6 +344,7 @@ header {
                     "cover ."
                     "cover name"
                     "cover artist"
+                    "cover info"
                     "cover actions"
                     "cover .";
                 grid-template-rows: 1fr auto auto auto 1fr;
@@ -363,6 +368,13 @@ header {
                 .album-artist {
                     grid-area: artist;
                     font-size: 24px;
+                    margin-bottom: 8px;
+                }
+
+                .album-deriv {
+                    grid-area: info;
+                    font-size: 16px;
+                    margin-bottom: 8px;
                 }
 
                 .actions {
@@ -648,7 +660,8 @@ a {
     text-decoration: none;
     cursor: pointer;
 
-    &:hover {
+    &:hover,
+    &.nohover {
         text-decoration: underline;
     }
 }

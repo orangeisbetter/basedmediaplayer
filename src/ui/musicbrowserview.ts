@@ -5,10 +5,10 @@ import { Player } from "../player.ts";
 import { Playlist } from "../playlist.ts";
 import { convertTime } from "../time.ts";
 import { Track } from "../track.ts";
-import { AlbumDisplay } from "./albumdisplay.ts";
 import { CompareEntry, CompareFunction, compareSmartAlpha, compareStack, compareUndefinedLast, numberCompare } from "../util/sort.ts";
 import { Artist } from "../artist.ts";
 import { SelectableList } from "./selectablelist.ts";
+import { BrowserState, MusicBrowser } from "../musicbrowser.ts";
 
 declare const template_album: HTMLTemplateElement;
 declare const template_track_list_item: HTMLTemplateElement;
@@ -43,6 +43,8 @@ export class MusicBrowserView {
     private static sortContainer: HTMLElement;
     private static sortSelect: HTMLSelectElement;
 
+    private static breadcrumbs: HTMLDivElement;
+
     private static browserMode: BrowserMode;
     private static albumSortMode: AlbumSortingMode;
     private static trackSortMode: TrackSortingMode;
@@ -71,6 +73,9 @@ export class MusicBrowserView {
         this.modeContainer = document.querySelector("header #main_view_select")!;
         this.modeSelect = this.modeContainer.querySelector("select, :scope:where(select)")!;
 
+        this.sortContainer = document.querySelector("header #main_view_sort")!;
+        this.sortSelect = this.sortContainer.querySelector("select, :scope:where(select)")!;
+
         this.modeSelect.addEventListener("change", () => {
             const browserMode = this.modeSelect.value as BrowserMode;
             this.browserMode = browserMode;
@@ -78,9 +83,6 @@ export class MusicBrowserView {
             this.db.put("config", this.browserMode, "browser_mode");
             this.update();
         });
-
-        this.sortContainer = document.querySelector("header #main_view_sort")!;
-        this.sortSelect = this.sortContainer.querySelector("select, :scope:where(select)")!;
 
         this.sortSelect.addEventListener("change", () => {
             switch (this.browserMode) {
@@ -119,14 +121,20 @@ export class MusicBrowserView {
                     break;
             }
         });
+
+        MusicBrowser.attachObserver(this.browserObserver.bind(this));
     }
 
-    static setCollection(collection: Collection | null) {
-        if (this.collection != collection) {
-            this.collection = collection;
-            // this.breadcrumbs.textContent = `> ${this.collection ? "Collections" : "Local library"} > ${this.getCollectionPath(this.collection)}`;
-            this.update();
+    private static browserObserver(state: BrowserState) {
+        if (state.albumId !== null) {
+            this.hide();
+            return;
+        } else {
+            this.show();
         }
+
+        this.collection = state.collection;
+        this.update();
     }
 
     static updateSortComponent() {
@@ -269,14 +277,18 @@ export class MusicBrowserView {
     private static getAlbumElement(album: Album): DocumentFragment {
         const clone = document.importNode(template_album.content, true);
 
+        const albumClick = function () {
+            MusicBrowser.modify(state => state.albumId = album.id);
+        }
+
         const cover: HTMLImageElement = clone.querySelector(".cover")!;
         cover.src = album.getCoverURL();
-        cover.addEventListener("click", () => AlbumDisplay.displayAlbum(album.id, this.collection));
+        cover.addEventListener("click", albumClick);
 
         const albumName: HTMLElement = clone.querySelector(".album-name")!;
         albumName.textContent = album.name ?? DEFAULT_ALBUM_NAME;
         albumName.title = album.name ?? DEFAULT_ALBUM_NAME;
-        albumName.addEventListener("click", () => AlbumDisplay.displayAlbum(album.id, this.collection));
+        albumName.addEventListener("click", albumClick);
 
         const albumArtist: HTMLElement = clone.querySelector(".album-artist")!;
         const albumArtistName = album.getArtistName() ?? DEFAULT_ARTIST_NAME;

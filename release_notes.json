@@ -63,5 +63,19 @@
         "bug_fixes": [
             "Reduced parallel file loading from 256 to 4 to improve locality and loading times"
         ]
+    },
+    {
+        "version": "0.3.1",
+        "features": [
+            "Added breadcrumbs to the browser header for hierarchical navigation",
+            "Utilized browser history to be able to return to previously visited browsing contexts",
+            "Added track count and total duration to the album view"
+        ],
+        "changes": [
+            "Made external hyperlinks always underlined"
+        ],
+        "bug_fixes": [
+            "Changed the main entry file to typescript"
+        ]
     }
 ]
