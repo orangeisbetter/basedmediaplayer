@@ -15,6 +15,7 @@ import { Library } from "./library.ts";
 import { getVersion } from "./ui/releasenotes.ts";
 import { BreadcrumbsView } from "./ui/breadcrumbsview.ts";
 import { MusicBrowser } from "./musicbrowser.ts";
+import { ResizablePanels } from "./ui/resizablepanel.ts";
 
 declare const track_list: HTMLDivElement;
 declare const search_bar: HTMLInputElement;
@@ -87,10 +88,29 @@ async function initDB(): Promise<boolean> {
     return rescan;
 }
 
+// async function getAnonymousUsageConsent() {
+//     const previous = await db.get("config", "anonymous_usage_reporting_consent")
+//     if (previous !== undefined) {
+//         return;
+//     }
+
+//     const dialog = document.getElementById("anonymous-usage-consent") as HTMLDialogElement;
+//     dialog.show();
+//     dialog.addEventListener("close", () => {
+//         const consent = dialog.returnValue;
+//         const consented = consent === "yes";
+//         db.put("config", consented, "anonymous_usage_reporting_consent");
+//     });
+// }
+
 document.addEventListener("DOMContentLoaded", async () => {
     document.title = "Nothing is playing";
 
     const rescan = await initDB();
+
+    ResizablePanels.init();
+
+    // getAnonymousUsageConsent();
 
     MenuSystem.init();
     MenuBar.init(document.querySelector("#menubar")!);
@@ -124,7 +144,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         MusicBrowserView.init(db, document.querySelector(".browser-view")!);
         return Collection.loadAll(db);
     }).then(() => {
-        LibraryTreeView.init(document.querySelector(".sidebar")!);
+        LibraryTreeView.init(document.querySelector("#sidebar")!);
     });
 
     await Player.init(db);

@@ -77,5 +77,24 @@
         "bug_fixes": [
             "Changed the main entry file to typescript"
         ]
+    },
+    {
+        "version": "0.3.2",
+        "features": [
+            "Added non-persistent resizing for the playlist and sidebar panels"
+        ],
+        "changes": [
+            "Made menu items that do not have any action or submenu appear grayed out and disabled",
+            "Fixed an alignment issue in the album view"
+        ],
+        "bug_fixes": [
+            "Updated dependency music-metadata",
+            "Fixed menu typing issues",
+            "Fixed menu click-away logic",
+            "Removed unused menu css",
+            "Fixed various menu-related bugs",
+            "Fixed a bug where clearing the playlist while the player is playing does not stop the playback",
+            "Fixed a bug where clearing the player would not remove the browser's media session entry"
+        ]
     }
 ]

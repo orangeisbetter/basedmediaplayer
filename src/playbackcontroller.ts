@@ -8,9 +8,7 @@ export class PlaybackController {
     }
 
     private static onTrackChange({ id }: { id: number | null }) {
-        if (id !== null) {
-            Player.changeTrack(id);
-        }
+        Player.changeTrack(id);
     }
 
     private static onTrackFinished() {

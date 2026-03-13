@@ -113,13 +113,28 @@
             <button onclick="playver.close()">Close</button>
         </div>
     </dialog>
-    <aside class="sidebar"></aside>
+    <div class="sidebar resizable-panel resize-right" style="--size: 200px" data-min-size="150" data-default-size="200">
+        <div class="resize-handle"></div>
+        <div id="sidebar"></div>
+        <dialog id="anonymous-usage-consent" style="border: 1px solid #ccc; margin: 8px; bottom: 0; width: 300px;">
+            <form method="dialog">
+                <div class="content">
+                    <h3>Anonymous Usage Reporting</h3>
+                    <p>Do you authorize this app to send anonymous usage statistics to its creator to improve the app?</p>
+                    <p>This will be used to better understand how certain people use the software in order to make the app smoother and more functional.</p>
+                </div>
+                <div class="button-bar">
+                    <div class="glue"></div>
+                    <button value="">No</button>
+                    <button value="yes">Yes</button>
+                </div>
+            </form>
+        </dialog>
+    </div>
     <header>
         <div id="menubar"></div>
-        <!-- <div></div> -->
         <div style="border-left: 1px solid #ccc; height: 16px"></div>
         <div class="breadcrumbs" id="breadcrumbs"></div>
-        <!-- <div style="border-left: 1px solid gray; height: 16px"></div> -->
         <div class="glue"></div>
         <div id="main_view_select" style="display: none">
             <span>View as</span>
@@ -205,7 +220,8 @@
         </div>
     </div>
     <div class="lyrics-panel" style="display: none;"></div>
-    <div class="playlist" id="playlist_panel" style="--width: 300px">
+    <div class="playlist resizable-panel resize-left" id="playlist_panel" style="--size: 300px" data-min-size="200" data-default-size="300">
+        <div class="resize-handle"></div>
         <div class="playlist-bar">
             <button class="clear" id="playlist_clear_btn">Clear</button>
             <button class="shuffle" id="playlist_clear_btn">Shuffle</button>

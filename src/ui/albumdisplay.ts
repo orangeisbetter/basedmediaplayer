@@ -42,15 +42,15 @@ export class AlbumDisplay {
                 html: "Play next",
                 click: () => this.playNext()
             },
-            { kind: "separator" },
             {
                 kind: "item",
                 html: "Add to playlist",
                 click: () => this.addToPlaylist()
             },
+            { kind: "separator" },
             {
                 kind: "item",
-                html: "Add to collection"
+                html: "Add to collection",
             },
             { kind: "separator" },
             {

@@ -25,7 +25,7 @@ class MenuItemView {
     element: HTMLLIElement;
     item: MenuItem;
     parentMenu: MenuView;
-    submenuView?: MenuView;
+    submenuView: MenuView | null;
     timeout: number = 0;
 
     constructor(item: MenuItem, parentMenu: MenuView) {
@@ -35,6 +35,7 @@ class MenuItemView {
 
         this.item = item;
         this.parentMenu = parentMenu;
+        this.submenuView = null;
 
         if (this.item.submenu) {
             this.element.classList.add("hasmenu");
@@ -42,13 +43,19 @@ class MenuItemView {
             this.element.addEventListener("mouseleave", () => this.mouseLeave());
         }
 
+        if (this.item.click === undefined && this.item.submenu === undefined) {
+            this.element.classList.add("disabled");
+        }
+
         this.element.addEventListener("click", () => this.clickHandler());
     }
 
     clickHandler() {
-        this.item.click?.call(undefined);
-        if (!this.item.submenu) {
-            MenuSystem.closeAllMenus();
+        if (this.item.click !== undefined) {
+            this.item.click();
+            if (!this.item.submenu) {
+                MenuSystem.closeAllMenus();
+            }
         }
     }
 
@@ -61,19 +68,19 @@ class MenuItemView {
             clearTimeout(this.timeout);
             this.timeout = 0;
         } else if (!this.submenuView && !this.timeout) {
-            this.timeout = window.setTimeout(() => {
+            this.timeout = setTimeout(() => {
                 this.timeout = 0;
                 const rect = this.element.getBoundingClientRect();
-                this.submenuView = new MenuView(this.item.submenu, { type: "submenu", rect }, this.parentMenu.source, this);
+                this.submenuView = new MenuView(this.item.submenu!, { type: "submenu", rect }, this.parentMenu.source, this);
             }, 300);
         }
     }
 
     private mouseLeave() {
         if (this.submenuView && !this.timeout) {
-            this.timeout = window.setTimeout(() => {
+            this.timeout = setTimeout(() => {
                 this.timeout = 0;
-                this.submenuView.remove();
+                this.submenuView!.remove();
                 this.submenuView = null;
             }, 300);
         } else if (!this.submenuView && this.timeout) {
@@ -144,7 +151,7 @@ class MenuView {
             case "direct":
                 this.element.classList.add("direct");
 
-                if (options.x + rect.width < window.innerWidth) {
+                if (options.x + rect.width < innerWidth) {
                     this.element.style.left = `${options.x}px`;
                 } else if (options.x - rect.width >= 0) {
                     this.element.style.left = `${options.x - rect.width}px`;
@@ -152,7 +159,7 @@ class MenuView {
                     this.element.style.left = "0px";
                 }
 
-                if (options.y + rect.height < window.innerHeight) {
+                if (options.y + rect.height < innerHeight) {
                     this.element.style.top = `${options.y}px`;
                 } else if (options.y - rect.height >= 0) {
                     this.element.style.top = `${options.y - rect.height}px`;
@@ -165,7 +172,7 @@ class MenuView {
 
                 this.element.style.left = `${options.rect.left}px`;
 
-                if (options.rect.bottom + rect.height < window.innerHeight) {
+                if (options.rect.bottom + rect.height < innerHeight) {
                     this.element.style.top = `${options.rect.bottom}px`;
                 } else if (options.rect.top - rect.height >= 0) {
                     this.element.style.top = `${options.rect.top - rect.height}px`;
@@ -176,7 +183,7 @@ class MenuView {
             case "submenu":
                 this.element.classList.add("submenu");
 
-                if (options.rect.x + options.rect.width - 3 + rect.width < window.innerWidth) {
+                if (options.rect.x + options.rect.width - 3 + rect.width < innerWidth) {
                     this.element.style.left = `${options.rect.right - 3}px`;
                 } else if (options.rect.x + 3 - rect.width >= 0) {
                     this.element.style.left = `${options.rect.left + 3 - rect.width}px`;
@@ -184,7 +191,7 @@ class MenuView {
                     this.element.style.left = "0px";
                 }
 
-                if (options.rect.y - 3 + rect.height < window.innerHeight) {
+                if (options.rect.y - 3 + rect.height < innerHeight) {
                     this.element.style.top = `${options.rect.top - 3}px`;
                 } else if (options.rect.y + 3 - rect.height >= 0) {
                     this.element.style.top = `${options.rect.bottom - rect.height + 3}px`;
@@ -200,14 +207,15 @@ class MenuView {
         this.element.classList.add("visible");
 
         // Register click away
-        const clickAway = (event: MouseEvent) => {
-            if (!this.element.contains(event.target as Node)) {
-                MenuSystem.closeAllMenus();
-                document.removeEventListener("click", clickAway);
-            }
-        };
+        if (MenuSystem.openMenu === null) {
+            const clickAway = (event: MouseEvent) => {
+                if (!this.element.contains(event.target as Node)) {
+                    MenuSystem.closeAllMenus();
+                }
+            };
 
-        document.addEventListener("click", clickAway);
+            MenuSystem.registerClickAway(clickAway);
+        }
     }
 
     getElement() {
@@ -229,8 +237,9 @@ type MenuCallback = () => Menu | null;
 
 export class MenuSystem {
     static contextMenuRegistry: WeakMap<Element, MenuCallback> = new WeakMap();
-    static openMenu: MenuView = null;
-    static activeMenuBarButton: HTMLButtonElement = null;
+    static openMenu: MenuView | null = null;
+    static activeMenuBarButton: HTMLButtonElement | null = null;
+    static activeClickAway: ((event: MouseEvent) => void) | null = null;
 
     static init() {
         document.addEventListener("contextmenu", event => this.onContextMenu(event));
@@ -273,7 +282,21 @@ export class MenuSystem {
         }
     }
 
+    static registerClickAway(listener: (event: MouseEvent) => void): void {
+        MenuSystem.clearClickAway();
+        MenuSystem.activeClickAway = listener;
+        document.addEventListener("click", listener);
+    }
+
+    static clearClickAway(): void {
+        if (MenuSystem.activeClickAway) {
+            document.removeEventListener("click", MenuSystem.activeClickAway);
+            MenuSystem.activeClickAway = null;
+        }
+    }
+
     static closeAllMenus() {
+        MenuSystem.clearClickAway();
         this.openMenu?.remove();
         if (MenuSystem.activeMenuBarButton !== null) {
             MenuSystem.activeMenuBarButton.classList.remove("open");

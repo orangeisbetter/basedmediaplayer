@@ -28,7 +28,6 @@ export class PlayerView {
     private static volumeLabel: HTMLElement;
     private static playlistToggleButton: HTMLButtonElement;
     private static lyricsViewButton: HTMLButtonElement;
-    // private static shuffleButton: HTMLButtonElement;
     private static loopButton: HTMLButtonElement;
     private static loopIcon: HTMLElement;
 
@@ -60,7 +59,6 @@ export class PlayerView {
         this.volumeLabel = this.volumeControlButton.querySelector(":scope > .volume-label")!;
         this.playlistToggleButton = this.rootElement.querySelector(":scope > .additional-controls > .playlist-toggle")!;
         this.lyricsViewButton = this.rootElement.querySelector(":scope > .additional-controls > .lyrics-view")!;
-        // this.shuffleButton = this.rootElement.querySelector(":scope > .additional-controls > .shuffle");
         this.loopButton = this.rootElement.querySelector(":scope > .additional-controls > .loop")!;
         this.loopIcon = this.loopButton.querySelector("iconify-icon")!;
 
@@ -90,7 +88,7 @@ export class PlayerView {
                 this.lyricsPanel.style.display = "none";
             }
         });
-        // this.shuffleButton.addEventListener("click", () => this.shuffleButton.classList.toggle("active"));
+
         this.loopButton.addEventListener("click", () => this.loopButtonClick());
 
         switch (Playlist.loopMode) {
@@ -105,16 +103,29 @@ export class PlayerView {
                 break;
         }
 
-        navigator.mediaSession.setActionHandler("play", () => Player.play());
-        navigator.mediaSession.setActionHandler("pause", () => Player.pause());
-        navigator.mediaSession.setActionHandler("previoustrack", () => PlaybackController.skipPreviousAndPlay());
-        navigator.mediaSession.setActionHandler("nexttrack", () => PlaybackController.skipNextAndPlay());
-        navigator.mediaSession.setActionHandler("stop", () => Playlist.clear());
+        // Volume control
+        this.setupVolumeControl();
 
+        // Progress bar / slider
+        this.setupProgressSlider();
+
+        // Event listener attaching
+        Playlist.events.numTracksChange.addListener(this.skipButtonCheck.bind(this));
+        Playlist.events.trackChange.addListener(this.skipButtonCheck.bind(this));
+        Playlist.events.reorder.addListener(this.skipButtonCheck.bind(this));
+        Playlist.events.shuffle.addListener(this.shuffleHandler.bind(this));
+        Playlist.events.trackChange.addListener(this.trackChangeHandler.bind(this));
+        Player.events.timeChange.addListener(this.timeChangeHandler.bind(this));
+        Player.events.play.addListener(this.playHandler.bind(this));
+        Player.events.pause.addListener(this.pauseHandler.bind(this));
+
+        MusicBrowser.attachObserver(() => this.observerHandler());
+    }
+
+    private static setupVolumeControl() {
         let locked = false;
         let valid = false;
 
-        // Volume control
         this.volumeControlButton.addEventListener("mousedown", () => {
             this.volumeControlButton.requestPointerLock();
 
@@ -149,8 +160,9 @@ export class PlayerView {
 
             this.volumeLabel.textContent = Player.volumeDB.toFixed(1) + " dB";
         });
+    }
 
-        // Progress bar / slider
+    private static setupProgressSlider() {
         const thumb: HTMLDivElement = this.trackProgressBar.querySelector(":scope > .thumb")!;
         const hoverCatch: HTMLDivElement = this.trackProgressBar.querySelector(":scope > .hovercatch")!;
 
@@ -192,18 +204,6 @@ export class PlayerView {
         globalThis.addEventListener("pointerup", () => {
             dragging = false;
         });
-
-        // Event listener attaching
-        Playlist.events.numTracksChange.addListener(this.skipButtonCheck.bind(this));
-        Playlist.events.trackChange.addListener(this.skipButtonCheck.bind(this));
-        Playlist.events.reorder.addListener(this.skipButtonCheck.bind(this));
-        Playlist.events.shuffle.addListener(this.shuffleHandler.bind(this));
-        Playlist.events.trackChange.addListener(this.trackChangeHandler.bind(this));
-        Player.events.timeChange.addListener(this.timeChangeHandler.bind(this));
-        Player.events.play.addListener(this.playHandler.bind(this));
-        Player.events.pause.addListener(this.pauseHandler.bind(this));
-
-        MusicBrowser.attachObserver(() => this.observerHandler());
     }
 
     private static observerHandler() {
@@ -214,7 +214,6 @@ export class PlayerView {
     }
 
     private static updateTitle() {
-        console.log("updating title");
         if (this.trackId) {
             const track = Track.byID(this.trackId)!;
 
@@ -267,6 +266,23 @@ export class PlayerView {
     }
 
     private static trackChangeHandler({ id }: PlaylistTrackChangeEventData) {
+        if (this.trackId === null && id !== null) {
+            navigator.mediaSession.setActionHandler("play", () => Player.play());
+            navigator.mediaSession.setActionHandler("pause", () => Player.pause());
+            navigator.mediaSession.setActionHandler("previoustrack", () => PlaybackController.skipPreviousAndPlay());
+            navigator.mediaSession.setActionHandler("nexttrack", () => PlaybackController.skipNextAndPlay());
+            navigator.mediaSession.setActionHandler("stop", () => Playlist.clear());
+        } else if (id === null) {
+            navigator.mediaSession.playbackState = "none";
+            navigator.mediaSession.metadata = null;
+
+            navigator.mediaSession.setActionHandler("play", null);
+            navigator.mediaSession.setActionHandler("pause", null);
+            navigator.mediaSession.setActionHandler("previoustrack", null);
+            navigator.mediaSession.setActionHandler("nexttrack", null);
+            navigator.mediaSession.setActionHandler("stop", null);
+        }
+
         this.trackId = id;
 
         this.playPauseIcon.setAttribute("icon", "mdi:play");
@@ -287,9 +303,6 @@ export class PlayerView {
             this.lyricsViewButton.disabled = true;
 
             document.title = `Nothing is playing`;
-
-            navigator.mediaSession.playbackState = "none";
-            navigator.mediaSession.metadata = null;
             return;
         }
 
@@ -332,7 +345,8 @@ export class PlayerView {
 
     private static timeChangeHandler(time: number) {
         const track = Player.getCurrentTrack();
-        const duration = track?.duration ?? 0;
+        if (track === null) return;
+        const duration = track.duration ?? 0;
         this.trackTimeLabel.textContent = `${convertTime(time)} / ${convertTime(duration)}`;
         this.trackProgressBar.style.setProperty('--progress', `${time * 100 / (duration)}%`);
     }

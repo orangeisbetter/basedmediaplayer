@@ -1,12 +1,12 @@
 export type CompareFunction<T> = (a: T, b: T) => number;
 
-export function compareSmartAlpha(a: string, b: string) {
-    function stripLeading(str: string): string {
-        str = str.trim();
-        str = str.replace(/^(the|a|an)\s+/i, "");
-        return str;
-    }
+function stripLeading(str: string): string {
+    str = str.trim();
+    str = str.replace(/^(the|a|an)\s+/i, "");
+    return str;
+}
 
+export function compareSmartAlpha(a: string, b: string) {
     a = stripLeading(a);
     b = stripLeading(b);
 

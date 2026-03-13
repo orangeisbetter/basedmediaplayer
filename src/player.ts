@@ -45,10 +45,11 @@ export class Player {
         Player.volumeDB = await Player.db.get("config", "volume");
     }
 
-    static changeTrack(trackId: number): void {
+    static changeTrack(trackId: number | null): void {
         if (trackId === null) {
             Player.currentTrack = null;
             Player.audio.pause();
+            Player.audio.src = "";
             Player.events.clear.emit();
             return;
         }
@@ -70,9 +71,9 @@ export class Player {
                 throw Error("Unable to access file handle.");
             }
         }
-        this.file = await fileHandle.getFile();
-        this.url = URL.createObjectURL(this.file);
-        Player.audio.src = this.url;
+        Player.file = await fileHandle.getFile();
+        Player.url = URL.createObjectURL(Player.file);
+        Player.audio.src = Player.url;
     }
 
     private static endedHandler() {
@@ -102,14 +103,13 @@ export class Player {
         return Player.db.put("config", Player._volume, "volume");
     }
 
-    static play() {
+    static async play(): Promise<void> {
         if (Player.playing) return;
         Player.audioContext.resume();
-        this.loadPromise.then(async () => {
-            Player.playing = true;
-            await Player.audio.play();
-            Player.events.play.emit(Player.currentTrack!.id);
-        });
+        await Player.loadPromise;
+        Player.playing = true;
+        await Player.audio.play();
+        Player.events.play.emit(Player.currentTrack!.id);
     }
 
     static pause() {
