@@ -96,5 +96,20 @@
             "Fixed a bug where clearing the playlist while the player is playing does not stop the playback",
             "Fixed a bug where clearing the player would not remove the browser's media session entry"
         ]
+    },
+    {
+        "version": "0.3.3",
+        "features": [
+            "Added artist view",
+            "Made all links to artists navigate to the appropriate artist view, if available",
+            "Added breadcrumb support for artists"
+        ],
+        "changes": [
+            "Made the track and album count of albums and artists use a singular wording if there are only one item of either"
+        ],
+        "bug_fixes": [
+            "Fixed a bug where the tracks view of a parent collection did not include its children's tracks",
+            "Added a default flag for menu items, enabling double-click execution without opening the menu"
+        ]
     }
 ]

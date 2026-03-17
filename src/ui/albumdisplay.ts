@@ -1,6 +1,5 @@
 import { Album } from "../album.ts";
 import { Artist } from "../artist.ts";
-import { Collection } from "../collection.ts";
 import { BrowserState, MusicBrowser } from "../musicbrowser.ts";
 import { Player } from "../player.ts";
 import { Playlist } from "../playlist.ts";
@@ -19,8 +18,10 @@ export class AlbumDisplay {
     private static addToPlaylistButton: HTMLButtonElement;
     private static trackTableBody: HTMLTableSectionElement;
 
-    private static collection: Collection | null = null;
-    private static albumId: number | null = null;
+    private static coverElement: HTMLImageElement;
+    private static albumNameElement: HTMLElement;
+    private static albumArtistElement: HTMLAnchorElement;
+    private static albumInfoElement: HTMLElement;
 
     private static trackIds: number[] = [];
     private static list: SelectableList;
@@ -29,33 +30,35 @@ export class AlbumDisplay {
         menuitems: [
             {
                 kind: "item",
-                html: "<b>Play all</b>",
+                text: "Play all",
+                default: true,
                 click: () => this.playAll()
             },
+            { kind: "separator" },
             {
                 kind: "item",
-                html: "Play",
+                text: "Play",
                 click: () => this.play()
             },
             {
                 kind: "item",
-                html: "Play next",
+                text: "Play next",
                 click: () => this.playNext()
             },
             {
                 kind: "item",
-                html: "Add to playlist",
+                text: "Add to playlist",
                 click: () => this.addToPlaylist()
             },
             { kind: "separator" },
             {
                 kind: "item",
-                html: "Add to collection",
+                text: "Add to collection",
             },
             { kind: "separator" },
             {
                 kind: "item",
-                html: "Copy metadata as TSV",
+                text: "Copy metadata as TSV",
                 click: () => this.copyAsTSV()
             }
         ]
@@ -73,9 +76,16 @@ export class AlbumDisplay {
         this.addToPlaylistButton = this.rootElement.querySelector("#add_to_playlist_btn")!;
         this.trackTableBody = this.rootElement.querySelector("tbody")!;
 
+        this.coverElement = this.rootElement.querySelector("#album-cover")!;
+        this.albumNameElement = this.rootElement.querySelector("#album-name")!;
+        this.albumArtistElement = this.rootElement.querySelector("#album-artist")!;
+        this.albumInfoElement = this.rootElement.querySelector("#album-info")!;
+
         this.playAllButton.addEventListener("click", () => this.playAllHandler());
         this.shufflePlayButton.addEventListener("click", () => this.shufflePlayHandler());
         this.addToPlaylistButton.addEventListener("click", () => this.addToPlaylistHandler());
+
+        this.albumArtistElement.addEventListener("click", () => this.albumArtistClickHandler());
 
         this.list = SelectableList.register(this.trackTableBody);
 
@@ -94,16 +104,9 @@ export class AlbumDisplay {
         if (state.albumId === null) {
             this.hide();
             return;
-        } else {
-            this.show();
         }
 
-        if (state.collection === this.collection && state.albumId === this.albumId) {
-            return;
-        }
-
-        this.collection = state.collection;
-        this.albumId = state.albumId;
+        this.show();
         this.displayAlbum();
     }
 
@@ -116,38 +119,31 @@ export class AlbumDisplay {
     }
 
     private static displayAlbum() {
-        const album = Album.byID(this.albumId!);
-
-        if (!album) {
-            throw new Error(`Album with id ${this.albumId} does not exist!`);
-        }
+        const album = Album.byID(MusicBrowser.albumId!)!;
 
         this.trackTableBody.innerHTML = "";
 
-        const collectionTracks = this.collection?.getTrackIds();
-        this.trackIds = this.collection ? album.trackIds.filter(x => collectionTracks!.has(x)) : album.trackIds;
+        const collectionTracks = MusicBrowser.collection?.getTrackIds();
+        this.trackIds = collectionTracks ? album.trackIds.filter(x => collectionTracks.has(x)) : album.trackIds;
 
-        for (let index = 0; index < this.trackIds.length; index++) {
-            const track = Track.byID(this.trackIds[index]);
-            if (!track) {
-                throw new Error(`Album contains track with id ${this.trackIds[index]}, but such track does not exist!`);
-            }
-            this.trackTableBody.appendChild(AlbumDisplay.getTrackElement(index, track));
+        for (const trackId of this.trackIds) {
+            const track = Track.byID(trackId)!;
+            this.trackTableBody.appendChild(AlbumDisplay.getTrackElement(track));
         }
 
-        const cover: HTMLImageElement = this.rootElement.querySelector(".album-cover")!;
-        cover.src = album.getCoverURL();
+        this.coverElement.src = album.getCoverURL();
 
-        this.rootElement.querySelector(".album-name")!.textContent = album.name ?? "Unknown Album";
-        this.rootElement.querySelector("#album-artist")!.textContent = album.getArtistName() ?? "Unknown Artist";
+        this.albumNameElement.textContent = album.name ?? "Unknown album";
+        this.albumArtistElement.textContent = album.getArtistName() ?? "Unknown artist";
 
         const duration = this.trackIds.reduce((prev, current) => prev + Track.byID(current)!.duration, 0);
-        this.rootElement.querySelector("#derived-info")!.textContent = `${this.trackIds.length} tracks • ${convertTime(duration)}`;
+        const numTracks = this.trackIds.length;
+        this.albumInfoElement.textContent = `${numTracks} track${numTracks != 1 ? "s" : ""} • ${convertTime(duration)}`;
 
         this.rootElement.scroll({ top: 0 });
     }
 
-    private static getTrackElement(index: number, track: Track): DocumentFragment {
+    private static getTrackElement(track: Track): DocumentFragment {
         const clone = document.importNode(template_album_view_track.content, true);
 
         const cells = clone.querySelectorAll("td");
@@ -157,20 +153,18 @@ export class AlbumDisplay {
         cells[3].textContent = Artist.getArtistString(track.artists) ?? "";
         cells[4].textContent = track.composer?.join(", ") ?? "";
 
-        clone.firstElementChild!.addEventListener("dblclick", () => this.playAll(index));
-
         return clone;
     }
 
     private static playAll(index?: number) {
-        if (this.albumId === null) {
+        if (MusicBrowser.albumId === null) {
             throw new Error("Cannot play album, no album set!");
         }
 
-        const album = Album.byID(this.albumId)!;
+        const album = Album.byID(MusicBrowser.albumId)!;
 
-        const collectionTracks = this.collection?.getTrackIds();
-        const trackIds = this.collection ? album.trackIds.filter(x => collectionTracks!.has(x)) : album.trackIds;
+        const collectionTracks = MusicBrowser.collection?.getTrackIds();
+        const trackIds = MusicBrowser.collection ? album.trackIds.filter(x => collectionTracks!.has(x)) : album.trackIds;
 
         // Get index from beginning of selection if not specified
         index ??= this.list.getSelected()[0];
@@ -236,5 +230,15 @@ export class AlbumDisplay {
         Playlist.shuffle();
         Playlist.changeTrack(0);
         Player.play();
+    }
+
+    private static albumArtistClickHandler() {
+        const albumId = MusicBrowser.albumId;
+        if (albumId === null) return;
+        const album = Album.byID(albumId)!;
+        if (album.artist === undefined) return;
+        MusicBrowser.navigate({
+            artistId: album.artist
+        });
     }
 }

@@ -9,11 +9,11 @@ export type CollectionStore = {
 }
 
 export class Collection {
-    id: number;
+    readonly id: number;
     name: string;
-    trackIds: Set<number>;
-    children: number[];
-    parentId: number;
+    private trackIds: Set<number>;
+    private children: number[];
+    private parentId: number;
 
     /**
      * @deprecated Do not use this unless you need to
@@ -34,7 +34,7 @@ export class Collection {
     static rootCollections: number[] = [];
 
     constructor(options: { id?: number, name: string, trackIds: number[], parentId: number }) {
-        this.id = options.id === undefined ? Collection.highestID++ : options.id;
+        this.id = options.id ?? Collection.highestID++;
         this.name = options.name;
         this.trackIds = new Set(options.trackIds);
         this.parentId = options.parentId;
@@ -128,6 +128,12 @@ export class Collection {
     getParentCollection(): Collection | null {
         if (this.parentId === -1) return null;
         return Collection.collections.get(this.parentId)!;
+    }
+
+    getCollectionPath(): Collection[] {
+        const path = this.parentId !== -1 ? Collection.collections.get(this.parentId)!.getCollectionPath() : [];
+        path.push(this);
+        return path;
     }
 
     addChild(id: number) {

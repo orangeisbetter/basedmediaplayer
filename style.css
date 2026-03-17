@@ -347,7 +347,7 @@ header {
             margin: auto;
             padding-block: 16px;
 
-            .album-info {
+            .album-header {
                 display: grid;
                 grid-template-areas:
                     "cover ."
@@ -359,6 +359,7 @@ header {
                 grid-template-rows: 1fr auto auto auto auto 1fr;
                 grid-template-columns: auto 1fr;
                 column-gap: 16px;
+                row-gap: 8px;
                 margin-bottom: 16px;
 
                 .album-cover {
@@ -376,14 +377,14 @@ header {
 
                 .album-artist {
                     grid-area: artist;
-                    font-size: 24px;
-                    margin-bottom: 8px;
+                    font-size: 20px;
+                    /* margin-bottom: 8px; */
                 }
 
-                .album-deriv {
+                .album-info {
                     grid-area: info;
                     font-size: 16px;
-                    margin-bottom: 8px;
+                    /* margin-bottom: 8px; */
                 }
 
                 .actions {
@@ -391,6 +392,87 @@ header {
                     display: flex;
                     flex-direction: row;
                     gap: 4px;
+                }
+            }
+        }
+    }
+
+    .artist-view {
+        overflow-y: auto;
+        padding-inline: 16px;
+
+        .column {
+            max-width: 1000px;
+            margin: auto;
+            padding-block: 16px;
+
+            .artist-header {
+                display: flex;
+                flex-direction: column;
+                column-gap: 16px;
+                margin-bottom: 16px;
+                row-gap: 8px;
+
+                .artist-name {
+                    font-size: 32px;
+                    font-weight: bold;
+                }
+
+                .artist-info {
+                    font-size: 16px;
+                }
+            }
+
+            .actions {
+                display: flex;
+                flex-direction: row;
+                gap: 4px;
+            }
+
+            .albums-section,
+            .artists-section {
+                display: contents;
+            }
+
+            .albums-list {
+                display: flex;
+                flex-direction: row;
+                flex-wrap: wrap;
+                align-content: flex-start;
+                gap: 16px;
+                margin-block: 16px;
+
+                .album {
+                    width: var(--album-cover-size);
+
+                    .cover-box {
+                        width: var(--album-cover-size);
+                        height: var(--album-cover-size);
+
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        margin-bottom: 4px;
+
+                        .cover {
+                            max-width: 100%;
+                            max-height: 100%;
+                            box-shadow: 2px 2px 6px #0009;
+                            cursor: pointer;
+                            image-rendering: crisp-edges;
+                        }
+                    }
+
+                    .album-name,
+                    .album-artist {
+                        text-align: center;
+                        display: block;
+                        overflow: hidden;
+                    }
+
+                    .album-name {
+                        font-weight: bold;
+                    }
                 }
             }
         }
@@ -747,6 +829,11 @@ html {
     min-height: 100%
 }
 
+hr {
+    border: 0;
+    border-bottom: 1px solid #ccc;
+}
+
 .menu {
     line-height: 16px;
     margin: 0;
@@ -785,6 +872,9 @@ html {
             &:hover {
                 background-color: #0001;
             }
+        }
+        &.default {
+            font-weight: bold;
         }
 
         &.hasmenu::after,

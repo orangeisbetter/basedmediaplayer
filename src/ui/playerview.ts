@@ -79,6 +79,18 @@ export class PlayerView {
         this.albumCoverImage.addEventListener("click", albumClick);
         this.albumNameLabel.addEventListener("click", albumClick);
 
+        const albumArtistClick = function () {
+            const track = Player.getCurrentTrack();
+            if (track === null) return;
+            const album = Album.byID(track.albumId)!;
+            if (album.artist === undefined) return;
+            MusicBrowser.navigate({
+                artistId: album.artist
+            });
+        }
+
+        this.albumArtistLabel.addEventListener("click", albumArtistClick);
+
         this.playlistToggleButton.addEventListener("click", PlaylistView.toggleVisibility);
         this.lyricsViewButton.addEventListener("click", () => {
             if (this.lyricsPanel.style.display === "none") {

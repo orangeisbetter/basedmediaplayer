@@ -14,12 +14,12 @@ export class MenuBar {
         menuitems: [
             {
                 kind: "item",
-                html: "Options",
+                text: "Options",
                 submenu: {
                     menuitems: [
                         {
                             kind: "item",
-                            html: "Rescan library"
+                            text: "Rescan library"
                         },
                         // { kind: "separator" },
                         // {
@@ -43,7 +43,7 @@ export class MenuBar {
             // },
             {
                 kind: "item",
-                html: "Help",
+                text: "Help",
                 submenu: {
                     menuitems: [
                         // {
@@ -52,13 +52,13 @@ export class MenuBar {
                         // },
                         {
                             kind: "item",
-                            html: "Release notes",
+                            text: "Release notes",
                             click: () => showReleaseNotesDialog()
                         },
                         { kind: "separator" },
                         {
                             kind: "item",
-                            html: "About",
+                            text: "About",
                             click: () => playver.showModal()
                         },
                     ]

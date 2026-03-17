@@ -187,16 +187,13 @@
         </div>
         <div class="album-view" id="track_list" style="display: none;">
             <div class="column">
-                <div class="album-info">
-                    <img class="album-cover">
-                    <div class="album-name"></div>
+                <div class="album-header">
+                    <img class="album-cover" id="album-cover">
+                    <div class="album-name" id="album-name"></div>
                     <div class="album-artist">
                         <a id="album-artist"></a>
                     </div>
-                    <div class="album-deriv" id="derived-info">
-                        <span id="num-tracks"></span> tracks •
-                        <span id="duration"></span>
-                    </div>
+                    <div class="album-info" id="album-info"></div>
                     <div class="actions">
                         <button id="play_all_btn">Play all</button>
                         <button id="shuffle_play_btn">Shuffle play</button>
@@ -216,6 +213,53 @@
                     <tbody class="selectable-list">
                     </tbody>
                 </table>
+            </div>
+        </div>
+        <div class="artist-view" id="artist-view" style="display: none;">
+            <div class="column">
+                <div class="artist-header">
+                    <div class="artist-name" id="artist-name"></div>
+                    <div class="artist-info" id="artist-info">
+                        <span id="artist-num-albums"></span> •
+                        <span id="artist-num-tracks"></span>
+                    </div>
+                    <!-- <div class="actions">
+                        <button id="btn-play-all">Play all</button>
+                        <button id="btn-shuffle-play">Shuffle play</button>
+                        <button id="btn-add-to-playlist">Add to playlist</button>
+                    </div> -->
+                </div>
+                <div class="albums-section" id="albums-section">
+                    <h2>Albums</h2>
+                    <div class="actions">
+                        <button id="btn-albums-play-all">Play all</button>
+                        <button id="btn-albums-shuffle-play">Shuffle play</button>
+                        <button id="btn-albums-add-to-playlist">Add to playlist</button>
+                    </div>
+                    <div class="albums-list" id="albums"></div>
+                </div>
+                <div class="tracks-section" id="tracks-section">
+                    <h2>Tracks</h2>
+                    <div class="actions">
+                        <button id="btn-tracks-play-all">Play all</button>
+                        <button id="btn-tracks-shuffle-play">Shuffle play</button>
+                        <button id="btn-tracks-add-to-playlist">Add to playlist</button>
+                    </div>
+                    <table style="margin-top: 16px">
+                        <thead>
+                            <tr>
+                                <th>Album</th>
+                                <th>#</th>
+                                <th>Title</th>
+                                <th>Duration</th>
+                                <th>Artist</th>
+                                <th>Composer</th>
+                            </tr>
+                        </thead>
+                        <tbody class="selectable-list">
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
@@ -265,7 +309,7 @@
                 <iconify-icon icon="mdi:text" width="24" height="24"></iconify-icon>
             </button>
             <div class="separator"></div>
-            <button class="square volume-control" style="cursor: ns-resize;" id="volume_ctrl" title="Click and drag to adjust volume.">
+            <button class="square volume-control" style="cursor: ns-resize;" id="volume_ctrl" title="Click and drag to adjust volume">
                 <iconify-icon icon="mdi:volume" width="24" height="24"></iconify-icon>
                 <div class="volume-label" id="volume_display" style="display: none">0 dB</div>
             </button>

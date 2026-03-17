@@ -1,5 +1,5 @@
 import { Album } from "../album.ts";
-import { Collection } from "../collection.ts";
+import { Artist } from "../artist.ts";
 import { BrowserState, MusicBrowser } from "../musicbrowser.ts";
 
 export class BreadcrumbsView {
@@ -9,6 +9,7 @@ export class BreadcrumbsView {
     private static root: HTMLDivElement;
     private static collection: HTMLDivElement;
     private static album: HTMLDivElement;
+    private static artist: HTMLDivElement;
 
     static init() {
         this.breadcrumbs = document.querySelector("#breadcrumbs")!;
@@ -41,6 +42,11 @@ export class BreadcrumbsView {
 
         this.breadcrumbs.appendChild(this.album);
 
+        this.artist = document.createElement("div");
+        this.artist.style.display = "contents";
+
+        this.breadcrumbs.appendChild(this.artist);
+
         MusicBrowser.attachObserver(state => this.browserObserver(state));
     }
 
@@ -51,35 +57,23 @@ export class BreadcrumbsView {
     private static update(state: BrowserState) {
         this.collection.innerHTML = "";
 
-        const doCollections = (collection: Collection) => {
-            const parent = collection.getParentCollection();
-            if (parent !== null) {
-                doCollections(parent);
-            }
-            this.collection.appendChild(this.delimiter.cloneNode(true));
-
-            const node = document.createElement("a");
-            node.textContent = collection.name;
-            node.addEventListener("click", () => MusicBrowser.navigate({
-                collection: collection
-            }));
-
-            this.collection.appendChild(node);
-        }
-
         if (state.collection) {
-            doCollections(state.collection);
+            for (const collection of state.collection.getCollectionPath()) {
+                this.collection.appendChild(this.delimiter.cloneNode(true));
+
+                const node = document.createElement("a");
+                node.textContent = collection.name;
+                node.addEventListener("click", () => MusicBrowser.navigate({
+                    collection: collection
+                }));
+
+                this.collection.appendChild(node);
+            }
         }
 
         this.album.innerHTML = "";
 
         if (state.albumId !== null) {
-            // this.album.appendChild(this.delimiter.cloneNode(true));
-
-            // const albumDescriptor = document.createElement("span");
-            // albumDescriptor.textContent = "Album";
-            // this.album.appendChild(albumDescriptor);
-
             this.album.appendChild(this.delimiter.cloneNode(true));
 
             const album = Album.byID(state.albumId);
@@ -89,6 +83,23 @@ export class BreadcrumbsView {
             node.addEventListener("click", () => MusicBrowser.navigate({
                 collection: state.collection,
                 albumId: state.albumId
+            }));
+
+            this.album.appendChild(node);
+        }
+
+        this.artist.innerHTML = "";
+
+        if (state.artistId !== null) {
+            this.album.appendChild(this.delimiter.cloneNode(true));
+
+            const artist = Artist.byID(state.artistId);
+
+            const node = document.createElement("a");
+            node.textContent = artist?.name ?? "Unknown Artist";
+            node.addEventListener("click", () => MusicBrowser.navigate({
+                collection: state.collection,
+                artistId: state.artistId
             }));
 
             this.album.appendChild(node);

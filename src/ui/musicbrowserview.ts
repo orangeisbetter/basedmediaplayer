@@ -48,7 +48,6 @@ export class MusicBrowserView {
     private static browserMode: BrowserMode;
     private static albumSortMode: AlbumSortingMode;
     private static trackSortMode: TrackSortingMode;
-    private static collection: Collection | null = null;
 
     constructor() {
         throw Error("This static class cannot be instantiated");
@@ -126,14 +125,12 @@ export class MusicBrowserView {
     }
 
     private static browserObserver(state: BrowserState) {
-        if (state.albumId !== null) {
+        if (state.albumId !== null || state.artistId !== null) {
             this.hide();
             return;
-        } else {
-            this.show();
         }
 
-        this.collection = state.collection;
+        this.show();
         this.update();
     }
 
@@ -184,7 +181,7 @@ export class MusicBrowserView {
     }
 
     static showAlbums() {
-        const albumIds = this.collection ? Array.from(this.collection.getAlbumIds()) : Album.getAllIds();
+        const albumIds = MusicBrowser.collection ? Array.from(MusicBrowser.collection.getAlbumIds()) : Album.getAllIds();
 
         const albums = albumIds.map(albumId => Album.byID(albumId)!);
 
@@ -216,16 +213,16 @@ export class MusicBrowserView {
     static showArtists() {
         let artistIds;
 
-        if (this.collection) {
+        if (MusicBrowser.collection) {
             const artistSet = new Set<number>();
 
-            const albumIds = Array.from(this.collection.getAlbumIds());
+            const albumIds = Array.from(MusicBrowser.collection.getAlbumIds());
             for (const albumId of albumIds) {
                 const album = Album.byID(albumId)!;
                 if (album.artist) artistSet.add(album.artist);
             }
 
-            const trackIds = Array.from(this.collection.getTrackIds());
+            const trackIds = Array.from(MusicBrowser.collection.getTrackIds());
             for (const trackId of trackIds) {
                 const track = Track.byID(trackId)!;
                 track.artists.forEach(artist => artistSet.add(artist));
@@ -253,8 +250,11 @@ export class MusicBrowserView {
 
     static showTracks() {
         const allTracks = Array.from(Track.getAllIds());
-        const collectionTracks = this.collection?.trackIds;
-        const trackIds = this.collection ? allTracks.filter(x => collectionTracks!.has(x)) : allTracks;
+        console.log(allTracks);
+        const collectionTracks = MusicBrowser.collection?.getTrackIds();
+        console.log(collectionTracks);
+        const trackIds = collectionTracks ? allTracks.filter(x => collectionTracks.has(x)) : allTracks;
+        console.log(trackIds);
 
         const tracks = trackIds.map(trackId => Track.byID(trackId)!);
         const compareFn: CompareFunction<Track> = compareStack([
@@ -294,7 +294,11 @@ export class MusicBrowserView {
         const albumArtistName = album.getArtistName() ?? DEFAULT_ARTIST_NAME;
         albumArtist.textContent = albumArtistName;
         albumArtist.title = albumArtistName;
-        // albumArtist.addEventListener("click", () => ArtistDisplay.displayArtist(albumArtist.id, this.collection));
+
+        albumArtist.addEventListener("click", () => MusicBrowser.navigate({
+            collection: MusicBrowser.collection,
+            artistId: album.artist
+        }));
 
         return clone;
     }
@@ -326,6 +330,11 @@ export class MusicBrowserView {
         cells[0].title = cells[0].textContent = artist.name;
         cells[1].textContent = String(artist.albumIds.length);
         cells[2].textContent = String(artist.trackIds.length);
+
+        clone.firstElementChild!.addEventListener("click", () => MusicBrowser.navigate({
+            collection: MusicBrowser.collection,
+            artistId: artist.id
+        }));
 
         return clone;
     }

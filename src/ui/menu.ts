@@ -1,6 +1,7 @@
 export interface MenuItem {
     kind: "item";
-    html: string;
+    text: string;
+    default?: true;
     click?: () => void;
     submenu?: Menu;
 }
@@ -31,7 +32,7 @@ class MenuItemView {
     constructor(item: MenuItem, parentMenu: MenuView) {
         this.element = document.createElement("li");
         this.element.className = "menuitem";
-        this.element.innerHTML = item.html;
+        this.element.innerText = item.text;
 
         this.item = item;
         this.parentMenu = parentMenu;
@@ -45,6 +46,9 @@ class MenuItemView {
 
         if (this.item.click === undefined && this.item.submenu === undefined) {
             this.element.classList.add("disabled");
+        }
+        if (this.item.default) {
+            this.element.classList.add("default");
         }
 
         this.element.addEventListener("click", () => this.clickHandler());
@@ -243,6 +247,7 @@ export class MenuSystem {
 
     static init() {
         document.addEventListener("contextmenu", event => this.onContextMenu(event));
+        document.addEventListener("dblclick", event => this.onDoubleClick(event));
     }
 
     static setContextMenu(element: Element, menu: MenuCallback) {
@@ -260,7 +265,7 @@ export class MenuSystem {
             if (entry.kind === "item") {
                 const button = document.createElement("button");
                 button.className = "menubar-item";
-                button.innerHTML = entry.html;
+                button.innerText = entry.text;
 
                 button.addEventListener("click", e => {
                     e.stopPropagation();
@@ -306,7 +311,7 @@ export class MenuSystem {
 
     private static onContextMenu(event: PointerEvent) {
         if (this.openMenu) {
-            this.openMenu.remove();
+            this.closeAllMenus();
             return;
         };
 
@@ -324,6 +329,26 @@ export class MenuSystem {
             event.preventDefault();
             this.openMenu = new MenuView(menu, { type: "direct", x: event.clientX, y: event.clientY }, "context");
             return;
+        }
+    }
+
+    static onDoubleClick(event: MouseEvent): void {
+        // Try to find a menu with a default action bound, and if it can find one, then do it and
+        // prevent the default action. Otherwise, do nothing
+        for (let element = event.target as Element | null; element; element = element.parentElement) {
+            const menuCallback = this.contextMenuRegistry.get(element);
+            if (!menuCallback) continue;
+
+            const menu = menuCallback();
+            if (!menu) continue;
+
+            for (const item of menu.menuitems) {
+                if (item.kind === "separator" || !item.default || !item.click) continue;
+
+                event.preventDefault();
+                item.click();
+                return;
+            }
         }
     }
 }

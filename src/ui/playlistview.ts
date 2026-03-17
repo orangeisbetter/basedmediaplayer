@@ -33,12 +33,13 @@ export class PlaylistView {
         menuitems: [
             {
                 kind: "item",
-                html: "<b>Play</b>",
+                text: "Play",
+                default: true,
                 click: () => this.playHandler(),
             },
             {
                 kind: "item",
-                html: "Remove from list",
+                text: "Remove from list",
                 click: () => this.removeFromListHandler(),
             },
             // { kind: "separator" },
@@ -53,12 +54,13 @@ export class PlaylistView {
         menuitems: [
             {
                 kind: "item",
-                html: "<b>Play</b>",
+                text: "Play",
+                default: true,
                 click: () => this.playHandler(),
             },
             {
                 kind: "item",
-                html: "Remove from list",
+                text: "Remove from list",
                 click: () => this.removeFromListHandler(),
             }
         ]
@@ -70,8 +72,6 @@ export class PlaylistView {
 
     static init() {
         this.list = playlist_panel.querySelector(".playlist-list")!;
-        // this.list.addEventListener("click", PlaylistView.playlistItemClickHandler.bind(this));
-        this.list.addEventListener("dblclick", PlaylistView.playlistItemDoubleClickHandler.bind(this));
         this.list.addEventListener("dragstart", PlaylistView.dragStartHandler.bind(this));
         this.list.addEventListener("dragend", PlaylistView.dragEndHandler.bind(this));
         this.list.addEventListener("dragenter", PlaylistView.dragEnterHandler.bind(this));
