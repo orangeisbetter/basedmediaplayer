@@ -26,8 +26,10 @@
     <template id="tree_list_item">
         <li>
             <span class="caret"></span>
-            <span class="icon"><iconify-icon width="16px" height="16px"></iconify-icon></span>
-            <span class="label"></span>
+            <div class="row">
+                <span class="icon"><iconify-icon width="16px" height="16px"></iconify-icon></span>
+                <span class="label"></span>
+            </div>
             <ul></ul>
         </li>
     </template>
@@ -79,9 +81,9 @@
     </template>
     <dialog style="width: 400px" id="load_dialog">
         <div class="content">
-            <div>Loading music library...</div>
+            <p>Loading music library. This might take a while.</p>
             <progress id="progress_bar" style="display: block; width: 100%"></progress>
-            <div style="text-align: center;" id="loading_lbl"></div>
+            <p style="text-align: center;" id="loading_lbl"></p>
         </div>
     </dialog>
     <dialog style="width: 600px; overflow-y: hidden" id="release_notes_dialog">
@@ -112,6 +114,20 @@
             <div class="glue"></div>
             <button onclick="playver.close()">Close</button>
         </div>
+    </dialog>
+    <dialog style="width: 300px" id="create-collection-dialog">
+        <form method="dialog">
+            <div class="content">
+                <h2>Create Collection</h2>
+                <p>Please enter the name of the new collection:</p>
+                <input type="text" name="name">
+            </div>
+            <div class="button-bar">
+                <div class="glue"></div>
+                <button type="button" onclick="this.closest('dialog').close()">Cancel</button>
+                <button type="submit" value="create">Create</button>
+            </div>
+        </form>
     </dialog>
     <div class="sidebar resizable-panel resize-right" style="--size: 200px" data-min-size="150" data-default-size="200">
         <div class="resize-handle"></div>
@@ -309,7 +325,8 @@
                 <iconify-icon icon="mdi:text" width="24" height="24"></iconify-icon>
             </button>
             <div class="separator"></div>
-            <button class="square volume-control" style="cursor: ns-resize;" id="volume_ctrl" title="Click and drag to adjust volume">
+            <button class="square volume-control" style="cursor: ns-resize;" id="volume_ctrl"
+                title="Click and drag or scroll to adjust volume">
                 <iconify-icon icon="mdi:volume" width="24" height="24"></iconify-icon>
                 <div class="volume-label" id="volume_display" style="display: none">0 dB</div>
             </button>

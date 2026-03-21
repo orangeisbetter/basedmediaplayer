@@ -8,6 +8,9 @@ export type CollectionStore = {
     parent: number;
 }
 
+type CollectionRootObserver = (collections: Collection[]) => void;
+type CollectionObserver = (collection: Collection) => void;
+
 export class Collection {
     readonly id: number;
     name: string;
@@ -28,10 +31,20 @@ export class Collection {
 
     private tracksCache?: Set<number>;
 
-    static highestID: number = 0;
+    // These fire when a collection's children list or its name changes
+    private baseObservers: CollectionObserver[] = [];
+    // These fire when a collection's track member list changes (tracks added or removed)
+    private trackObservers: CollectionObserver[] = [];
+
+    private static db: IDBPDatabase;
+
+    private static highestID: number = 0;
     static collections: Map<number, Collection> = new Map();
 
     static rootCollections: number[] = [];
+    static recentlyAdded: Collection | null = null;
+
+    private static rootObservers: CollectionRootObserver[] = [];
 
     constructor(options: { id?: number, name: string, trackIds: number[], parentId: number }) {
         this.id = options.id ?? Collection.highestID++;
@@ -39,6 +52,11 @@ export class Collection {
         this.trackIds = new Set(options.trackIds);
         this.parentId = options.parentId;
         this.children = [];
+        Collection.collections.set(this.id, this);
+    }
+
+    static init(db: IDBPDatabase) {
+        this.db = db;
     }
 
     static createFromStore(store: CollectionStore): Collection {
@@ -50,17 +68,8 @@ export class Collection {
         });
     }
 
-    getStore(): CollectionStore {
-        return {
-            id: this.id as number,
-            name: this.name,
-            trackIds: Array.from(this.trackIds),
-            parent: this.parentId
-        };
-    }
-
-    static async saveAll(db: IDBPDatabase) {
-        const transaction = db.transaction("collections", "readwrite");
+    static async saveAll() {
+        const transaction = this.db.transaction("collections", "readwrite");
         const objectStore = transaction.objectStore("collections");
         for (const collection of Collection.collections.values()) {
             await objectStore.put(collection.getStore());
@@ -68,13 +77,12 @@ export class Collection {
         transaction.commit();
     }
 
-    static async loadAll(db: IDBPDatabase) {
-        const collections: CollectionStore[] = await db.getAll("collections");
+    static async loadAll() {
+        const collections: CollectionStore[] = await this.db.getAll("collections");
 
         // First pass: create objects (except for root, which is created statically)
         for (const collectionStore of collections) {
             const collection = Collection.createFromStore(collectionStore);
-            Collection.collections.set(collection.id, collection);
             if (collection.id >= Collection.highestID) {
                 Collection.highestID = collection.id + 1;
             }
@@ -95,28 +103,78 @@ export class Collection {
         return Collection.collections.get(id);
     }
 
-    invalidateTracksCache() {
+    static createRootCollection(name: string): Collection {
+        // Check to make sure a collection doesn't already exist by the same name
+        // This isn't necessarily an illegal state but it is confusing for the user
+        for (const id of this.rootCollections) {
+            const collection = Collection.byID(id)!;
+            if (collection.name.toLowerCase() === name.toLowerCase()) return collection;
+        }
+
+        const newCollection = new Collection({ name, trackIds: [], parentId: -1 });
+        this.rootCollections.push(newCollection.id);
+        const array = this.rootCollections.map(id => this.byID(id)!);
+        this.rootObservers.forEach(observer => observer(array.slice()));
+        return newCollection;
+    }
+
+    private static getResidingCollectionsRecursive(collection: Collection, out: Set<Collection>, trackIds: number[]) {
+        const collectionTracks = collection.getTrackIds();
+        trackIds = trackIds.filter(trackId => collectionTracks.has(trackId));
+        for (const trackId of trackIds) {
+            if (collection.trackIds.has(trackId)) {
+                out.add(collection);
+            }
+        }
+        for (const child of collection.getChildren()) {
+            this.getResidingCollectionsRecursive(child, out, trackIds);
+        }
+    }
+
+    static getResidingCollections(trackIds: number[]): Set<Collection> {
+        const collections = new Set<Collection>();
+        for (const collectionId of this.rootCollections) {
+            const collection = Collection.byID(collectionId)!;
+            this.getResidingCollectionsRecursive(collection, collections, trackIds);
+        }
+        return collections;
+    }
+
+    static attachRootObserver(observer: CollectionRootObserver) {
+        this.rootObservers.push(observer);
+    }
+
+    static detachRootObserver(observer: CollectionRootObserver) {
+        this.rootObservers = this.rootObservers.filter(test => test !== observer);
+    }
+
+    private tracksChanged() {
         this.tracksCache = undefined;
-        this.getParentCollection()?.invalidateTracksCache();
+        this.trackObservers.forEach(observer => observer(this));
+        this.getParent()?.tracksChanged();
     }
 
-    add(trackId: number) {
-        if (!this.trackIds) {
-            throw Error("Cannot add track to collection. This collection is not valid for this process.");
+    add(trackIds: number[]) {
+        Collection.recentlyAdded = this;
+        if (trackIds.length === 0) return;
+        for (const trackId of trackIds) {
+            this.trackIds.add(trackId);
         }
-        this.trackIds.add(trackId);
-        this.invalidateTracksCache();
+        Collection.db.put("collections", this.getStore());
+        this.tracksChanged();
     }
 
-    remove(trackId: number): boolean {
-        if (!this.trackIds) {
-            throw Error("Cannot remove track from collection. This collection is not valid for this process.");
+    remove(trackIds: number[]): number {
+        if (trackIds.length === 0) return 0;
+        let count = 0;
+        for (const trackId of trackIds) {
+            if (this.trackIds.delete(trackId)) count++;
         }
-        const success = this.trackIds.delete(trackId);
-        if (success) {
-            this.invalidateTracksCache();
+        if (count > 0) {
+            Collection.db.put("collections", this.getStore());
+            this.tracksChanged();
         }
-        return success;
+        return count;
     }
 
     *getChildren(): Generator<Collection> {
@@ -125,7 +183,7 @@ export class Collection {
         }
     }
 
-    getParentCollection(): Collection | null {
+    getParent(): Collection | null {
         if (this.parentId === -1) return null;
         return Collection.collections.get(this.parentId)!;
     }
@@ -136,15 +194,38 @@ export class Collection {
         return path;
     }
 
-    addChild(id: number) {
-        this.children.push(id);
-        this.invalidateTracksCache();
+    createChild(name: string): Collection {
+        // Check to make sure a collection doesn't already exist by the same name
+        // This isn't necessarily an illegal state but it is confusing for the user
+        for (const id of this.children) {
+            const collection = Collection.byID(id)!;
+            if (collection.name.toLowerCase() === name.toLowerCase()) return collection;
+        }
+
+        const newCollection = new Collection({ name, trackIds: [], parentId: this.id });
+        this.children.push(newCollection.id);
+        this.baseObservers.forEach(observer => observer(this));
+        return newCollection;
+    }
+
+    deleteSelf() {
+        for (const child of this.getChildren()) {
+            child.deleteSelf();
+        }
+        Collection.collections.delete(this.id);
+        if (this.parentId === -1) {
+            Collection.rootCollections.filter(id => id !== this.id);
+            const array = Collection.rootCollections.map(id => Collection.byID(id)!);
+            Collection.rootObservers.forEach(observer => observer(array.slice()));
+        } else {
+            const parent = Collection.byID(this.parentId)!;
+            parent.children.filter(id => id !== this.id);
+            parent.baseObservers.forEach(observer => observer(parent));
+        }
     }
 
     private gather(out: Set<number>) {
-        if (this.trackIds) {
-            for (const id of this.trackIds) out.add(id);
-        }
+        for (const id of this.trackIds) out.add(id);
         for (const id of this.children) {
             Collection.collections.get(id)!.gather(out);
         }
@@ -166,5 +247,30 @@ export class Collection {
             albums.add(track.albumId);
         }
         return albums;
+    }
+
+    getStore(): CollectionStore {
+        return {
+            id: this.id as number,
+            name: this.name,
+            trackIds: Array.from(this.trackIds),
+            parent: this.parentId
+        };
+    }
+
+    attachBaseObserver(observer: CollectionObserver) {
+        this.baseObservers.push(observer);
+    }
+
+    detachBaseObserver(observer: CollectionObserver) {
+        this.baseObservers = this.baseObservers.filter(test => test !== observer);
+    }
+
+    attachTrackObserver(observer: CollectionObserver) {
+        this.trackObservers.push(observer);
+    }
+
+    detachTrackObserver(observer: CollectionObserver) {
+        this.trackObservers = this.trackObservers.filter(test => test !== observer);
     }
 }

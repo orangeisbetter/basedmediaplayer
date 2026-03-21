@@ -37,15 +37,15 @@ export class BreadcrumbsView {
 
         this.breadcrumbs.appendChild(this.collection);
 
-        this.album = document.createElement("div");
-        this.album.style.display = "contents";
-
-        this.breadcrumbs.appendChild(this.album);
-
         this.artist = document.createElement("div");
         this.artist.style.display = "contents";
 
         this.breadcrumbs.appendChild(this.artist);
+
+        this.album = document.createElement("div");
+        this.album.style.display = "contents";
+
+        this.breadcrumbs.appendChild(this.album);
 
         MusicBrowser.attachObserver(state => this.browserObserver(state));
     }
@@ -72,26 +72,46 @@ export class BreadcrumbsView {
         }
 
         this.album.innerHTML = "";
+        this.artist.innerHTML = "";
 
         if (state.albumId !== null) {
             this.album.appendChild(this.delimiter.cloneNode(true));
 
-            const album = Album.byID(state.albumId);
+            const album = Album.byID(state.albumId)!;
 
-            const node = document.createElement("a");
-            node.textContent = album?.name ?? "Unknown Album";
-            node.addEventListener("click", () => MusicBrowser.navigate({
+            const albumNode = document.createElement("a");
+            albumNode.textContent = album?.name ?? "Unknown Album";
+            albumNode.addEventListener("click", () => MusicBrowser.navigate({
                 collection: state.collection,
                 albumId: state.albumId
             }));
 
-            this.album.appendChild(node);
+            this.album.appendChild(albumNode);
+
+            // Album artist
+
+            this.artist.appendChild(this.delimiter.cloneNode(true));
+
+            const artistNode = document.createElement("a");
+
+            if (album.artist === undefined) {
+                artistNode.textContent = "Unknown artist";
+            } else {
+                const artist = Artist.byID(album.artist)!;
+                artistNode.textContent = artist.name ?? "Unknown Artist";
+                artistNode.addEventListener("click", () => MusicBrowser.navigate({
+                    collection: state.collection,
+                    artistId: album.artist
+                }));
+            }
+
+            this.artist.appendChild(artistNode);
+
+            return;
         }
 
-        this.artist.innerHTML = "";
-
         if (state.artistId !== null) {
-            this.album.appendChild(this.delimiter.cloneNode(true));
+            this.artist.appendChild(this.delimiter.cloneNode(true));
 
             const artist = Artist.byID(state.artistId);
 
@@ -102,7 +122,7 @@ export class BreadcrumbsView {
                 artistId: state.artistId
             }));
 
-            this.album.appendChild(node);
+            this.artist.appendChild(node);
         }
     }
 }

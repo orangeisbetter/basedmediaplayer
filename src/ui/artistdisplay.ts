@@ -1,12 +1,14 @@
 import { Album } from "../album.ts";
 import { Artist } from "../artist.ts";
+import { Collection } from "../collection.ts";
 import { BrowserState, MusicBrowser } from "../musicbrowser.ts";
 import { Player } from "../player.ts";
 import { Playlist } from "../playlist.ts";
 import { convertTime } from "../time.ts";
 import { Track } from "../track.ts";
 import { CompareEntry, compareSmartAlpha, compareStack, compareUndefinedLast, numberCompare } from "../util/sort.ts";
-import { Menu, MenuSystem } from "./menu.ts";
+import { MenuSystem } from "./menu.ts";
+import { getTracksMenuItems } from "./menus.ts";
 import { SelectableList } from "./selectablelist.ts";
 
 export class ArtistDisplay {
@@ -30,47 +32,10 @@ export class ArtistDisplay {
 
     private static trackTableBody: HTMLTableSectionElement;
     private static list: SelectableList;
+    private static lastCollection: Collection | null;
 
     private static trackIds: number[] = [];
     private static albumIds: number[] = [];
-
-    private static menu: Menu = {
-        menuitems: [
-            {
-                kind: "item",
-                text: "Play all",
-                default: true,
-                click: () => this.playAllTracks()
-            },
-            { kind: "separator" },
-            {
-                kind: "item",
-                text: "Play",
-                click: () => this.play()
-            },
-            {
-                kind: "item",
-                text: "Play next",
-                click: () => this.playNext()
-            },
-            {
-                kind: "item",
-                text: "Add to playlist",
-                click: () => this.addToPlaylist()
-            },
-            { kind: "separator" },
-            {
-                kind: "item",
-                text: "Add to collection",
-            },
-            { kind: "separator" },
-            {
-                kind: "item",
-                text: "Copy metadata as TSV",
-                click: () => this.copyAsTSV()
-            }
-        ]
-    };
 
     constructor() {
         throw Error("This static class cannot be instantiated");
@@ -107,17 +72,41 @@ export class ArtistDisplay {
         this.list = SelectableList.register(this.trackTableBody);
 
         MenuSystem.setContextMenu(this.trackTableBody, () => {
-            if (this.list.getSelected().length > 0) {
-                return this.menu
-            } else {
-                return null;
+            const selection = this.list.getSelected().map(index => this.trackIds[index]);
+            if (selection.length == 0) return null;
+            return {
+                menuitems: [
+                    {
+                        kind: "item",
+                        text: "Play all",
+                        default: true,
+                        click: () => this.playAllTracks()
+                    },
+                    { kind: "separator" },
+                    getTracksMenuItems(selection),
+                    { kind: "separator" },
+                    {
+                        kind: "item",
+                        text: "Copy metadata as TSV",
+                        click: () => this.copyAsTSV()
+                    }
+                ]
             }
         });
 
         MusicBrowser.attachObserver(state => this.browserObserver(state));
     }
 
+    private static collectionTrackObserver = (collection: Collection) => {
+        if (MusicBrowser.collection !== collection) return; // we don't care
+
+        this.displayArtist();
+    }
+
     private static browserObserver(state: BrowserState) {
+        this.lastCollection?.detachTrackObserver(this.collectionTrackObserver);
+        this.lastCollection = null;
+
         if (state.artistId === null) {
             this.hide();
             return;
@@ -125,6 +114,9 @@ export class ArtistDisplay {
 
         this.show();
         this.displayArtist();
+
+        MusicBrowser.collection?.attachTrackObserver(this.collectionTrackObserver);
+        this.lastCollection = MusicBrowser.collection;
     }
 
     static show() {
@@ -139,10 +131,6 @@ export class ArtistDisplay {
         const artist = Artist.byID(MusicBrowser.artistId!)!;
 
         this.artistNameElement.textContent = artist.name;
-
-        const numAlbums = artist.albumIds.length;
-        const numTracks = artist.trackIds.length;
-        this.artistInfoElement.textContent = `${numAlbums} album${numAlbums != 1 ? "s" : ""} • ${numTracks} track${numTracks != 1 ? "s" : ""}`;
 
         const collectionAlbums = MusicBrowser.collection?.getAlbumIds();
         const albumIdsUnsorted = collectionAlbums
@@ -187,6 +175,10 @@ export class ArtistDisplay {
         } else {
             this.tracksSection.style.display = "none"
         }
+
+        const numAlbums = albums.length;
+        const numTracks = tracks.length;
+        this.artistInfoElement.textContent = `${numAlbums} album${numAlbums != 1 ? "s" : ""} • ${numTracks} track${numTracks != 1 ? "s" : ""}`;
 
         this.rootElement.scroll({ top: 0 });
     }
@@ -313,27 +305,6 @@ export class ArtistDisplay {
         Playlist.shuffle();
         Playlist.changeTrack(0);
         Player.play();
-    }
-
-    private static play() {
-        const indices = this.list.getSelected();
-        if (indices.length == 0) return; // How did we get here???
-        const tracks = indices.map(index => this.trackIds[index]);
-        Playlist.add(...tracks);
-        Playlist.changeTrack(Playlist.getNumTracks() - tracks.length);
-        Player.play();
-    }
-
-    private static playNext() {
-        const indices = this.list.getSelected();
-        const tracks = indices.map(index => this.trackIds[index]);
-        Playlist.insertNext(...tracks);
-    }
-
-    private static addToPlaylist() {
-        const indices = this.list.getSelected();
-        const tracks = indices.map(index => this.trackIds[index]);
-        Playlist.add(...tracks);
     }
 
     private static copyAsTSV() {

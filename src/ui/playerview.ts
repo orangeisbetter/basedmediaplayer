@@ -147,6 +147,33 @@ export class PlayerView {
             document.exitPointerLock();
             Player.saveVolume();
         });
+        this.volumeControlButton.addEventListener("wheel", event => {
+            const deltaY = -event.deltaY;
+            let scale;
+            switch (event.deltaMode) {
+                case WheelEvent.DOM_DELTA_PIXEL:
+                    scale = 1.5 / 120;
+                    break;
+                case WheelEvent.DOM_DELTA_LINE:
+                    scale = 1.5 / 5;
+                    break;
+                case WheelEvent.DOM_DELTA_PAGE:
+                    scale = 1.5 / 10;
+                    break;
+                default:
+                    scale = 0.2;
+            }
+            const deltaDb = deltaY * scale;
+            Player.volumeDB = Math.max(-40, Math.min(Player.volumeDB + deltaDb, 0));
+            this.volumeLabel.textContent = Player.volumeDB.toFixed(1) + " dB";
+            this.volumeLabel.style.display = "";
+        }, { passive: false });
+        this.volumeControlButton.addEventListener("mouseout", () => {
+            if (document.pointerLockElement !== this.volumeControlButton) {
+                this.volumeLabel.style.display = "none";
+                Player.saveVolume();
+            }
+        });
 
         document.addEventListener("pointerlockchange", () => {
             if (document.pointerLockElement === this.volumeControlButton) {

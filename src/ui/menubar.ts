@@ -21,22 +21,26 @@ export class MenuBar {
                             kind: "item",
                             text: "Rescan library"
                         },
+                        {
+                            kind: "item",
+                            text: "Manage collections"
+                        }
                         // { kind: "separator" },
                         // {
                         //     kind: "item",
-                        //     html: "Preferences"
+                        //     text: "Preferences"
                         // },
                     ]
                 }
             },
             // {
             //     kind: "item",
-            //     html: "Tools",
+            //     text: "Tools",
             //     submenu: {
             //         menuitems: [
             //             {
             //                 kind: "item",
-            //                 html: "Cassette Recorder"
+            //                 text: "Cassette Recorder"
             //             }
             //         ]
             //     }
@@ -48,7 +52,7 @@ export class MenuBar {
                     menuitems: [
                         // {
                         //     kind: "item",
-                        //     html: "View tutorial"
+                        //     text: "View tutorial"
                         // },
                         {
                             kind: "item",

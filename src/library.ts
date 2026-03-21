@@ -13,7 +13,6 @@ declare const load_dialog: HTMLDialogElement;
 declare const loading_lbl: HTMLDivElement;
 
 export class Library {
-
     static saveRootHandle(db: IDBPDatabase, dirHandle: FileSystemDirectoryHandle) {
         return db.put("config", dirHandle, "root");
     }
@@ -22,65 +21,99 @@ export class Library {
         return db.get("config", "root");
     }
 
-    static async getLibraryHandle(db: IDBPDatabase) {
-        const root = await this.loadRootHandle(db);
-        if (root && await ensureReadPermission(root)) {
-            return root;
+    private static testSupported(): void {
+        if ((window as unknown as Window).showDirectoryPicker) {
+            return;
         }
 
-        // Ensure supported browser
-        if (!(window as unknown as Window).showDirectoryPicker) {
-            const unsupportedDialog = document.createElement("dialog");
-            unsupportedDialog.style.width = "400px"
-            unsupportedDialog.innerHTML = `
-                <div class="content">
-                    <h2>Error: Unsupported Browser or context</h2>
-                    <p>It appears your browser does not support the <code>Window.showDirectoryPicker()</code> function, which is needed by this application, or you are accessing the page via an insecure context.</p>
-                    <p>For now, you'll need to use a chromium-based browser (such as Google Chrome, Microsoft Edge, Brave, Chromium, and others) and use a secure context to run this app.</p>
-                </div>
-            `;
+        const unsupportedDialog = document.createElement("dialog");
+        unsupportedDialog.style.width = "400px"
+        unsupportedDialog.innerHTML = `
+            <div class="content">
+                <h2>Error: Unsupported Browser or context</h2>
+                <p>It appears your browser does not support the <code>Window.showDirectoryPicker()</code> function, which is needed by this application, or you are accessing the page via an insecure context.</p>
+                <p>For now, you'll need to use a chromium-based browser (such as Google Chrome, Microsoft Edge, Brave, Chromium, and others) and use a secure context to run this app.</p>
+            </div>
+            <div class="button-bar">
+                <div class="glue"></div>
+                <button>Close</button>
+            </div>
+        `;
 
-            const buttonBar = document.createElement("div");
-            buttonBar.className = "button-bar";
+        const okButton = unsupportedDialog.querySelector("button")!;
+        okButton.addEventListener("click", () => {
+            unsupportedDialog.close();
+            unsupportedDialog.remove();
+        });
 
-            const glue = document.createElement("div");
-            glue.className = "glue";
+        document.body.appendChild(unsupportedDialog);
+        unsupportedDialog.showModal();
 
-            const okButton = document.createElement("button");
-            okButton.style.float = "right";
-            okButton.textContent = "Close";
-            okButton.addEventListener("click", () => {
-                unsupportedDialog.close();
-                unsupportedDialog.remove();
-            });
+        throw new Error("Directory picker unsupported");
+    }
 
-            buttonBar.appendChild(glue);
-            buttonBar.appendChild(okButton);
+    private static async showSelectLibraryDialog(): Promise<FileSystemDirectoryHandle> {
+        const chooseLibraryDialog = document.createElement("dialog");
+        chooseLibraryDialog.style.width = "400px";
+        chooseLibraryDialog.innerHTML = `
+            <div class="content">
+                <h2>Welcome!</h2>
+                <p>It appears this is your first time here. To begin, please select the location of your music library.</p>
+            </div>
+            <div class="button-bar">
+                <div class="glue"></div>
+                <button>Select Library</button>
+            </div>
+        `;
 
-            unsupportedDialog.appendChild(buttonBar);
+        const button = chooseLibraryDialog.querySelector("button")!;
 
-            document.body.appendChild(unsupportedDialog);
-            unsupportedDialog.showModal();
-
-            throw new Error("Directory picker unsupported");
-        }
-
-        // Prompt the user with a button to select library (naive but ok)
-
-        const button = document.createElement("button");
-        button.textContent = "Select Library";
+        document.body.appendChild(chooseLibraryDialog);
 
         return await new Promise(resolve => {
             button.addEventListener("click", async () => {
                 const dirHandle = await (window as unknown as Window).showDirectoryPicker();
                 const hasPermission = await ensureReadPermission(dirHandle);
                 if (!hasPermission) throw new Error("Unable to get read permission for root handle!");
-                await this.saveRootHandle(db, dirHandle);
-                button.remove();
+                chooseLibraryDialog.close();
+                chooseLibraryDialog.remove();
                 resolve(dirHandle);
             });
-            document.querySelector(".main-view")!.appendChild(button);
+            chooseLibraryDialog.showModal();
         });
+    }
+
+    private static showLibraryLoadSuccessDialog(): void {
+        const loadSuccessDialog = document.createElement("dialog");
+        loadSuccessDialog.style.width = "500px";
+        loadSuccessDialog.innerHTML = `
+            <div class="content">
+                <h2>Library loaded successfully</h2>
+                <p>The music library you selected has been loaded. Here is what was discovered:</p>
+                <ul>
+                    <li>${Track.tracks.size} tracks</li>
+                    <li>${Album.albums.size} albums</li>
+                    <li>${Artist.artists.size} artists</li>
+                </ul>
+                <p>Please note that this program is in its early stages and that bugs are bound to exist. If you find a bug, feel free to report it
+                to <a href="mailto:feedback@orangeisbetter.net" class="nohover">feedback@orangeisbetter.net</a> or create an issue on
+                <a href="https://github.com/orangeisbetter/basedmediaplayer" target="_blank" class="nohover">the GitHub page</a>.</p>
+                <p>Enjoy!</p>
+            </div>
+            <div class="button-bar">
+                <div class="glue"></div>
+                <button>Get started</button>
+            </div>
+        `;
+
+        const okButton = loadSuccessDialog.querySelector("button")!;
+        okButton.addEventListener("click", () => {
+            loadSuccessDialog.close();
+            loadSuccessDialog.remove();
+        })
+
+        document.body.appendChild(loadSuccessDialog);
+        loadSuccessDialog.showModal();
     }
 
     static async loadLibrary(db: IDBPDatabase, rescan: boolean) {
@@ -100,7 +133,12 @@ export class Library {
 
         const albums: Album[] = [];
 
-        const dirHandle = await this.getLibraryHandle(db);
+        let dirHandle = await this.loadRootHandle(db);
+        if (!dirHandle || !await ensureReadPermission(dirHandle)) {
+            this.testSupported();
+            dirHandle = await this.showSelectLibraryDialog();
+            await this.saveRootHandle(db, dirHandle);
+        }
 
         load_dialog.showModal();
 
@@ -216,6 +254,8 @@ export class Library {
         Album.linkToArtists();
 
         load_dialog.close();
+
+        this.showLibraryLoadSuccessDialog();
     }
 
     static async rescanLibrary(_db: IDBPDatabase) {

@@ -1,11 +1,13 @@
 import { Album } from "../album.ts";
 import { Artist } from "../artist.ts";
+import { Collection } from "../collection.ts";
 import { BrowserState, MusicBrowser } from "../musicbrowser.ts";
 import { Player } from "../player.ts";
 import { Playlist } from "../playlist.ts";
 import { convertTime } from "../time.ts";
 import { Track } from "../track.ts";
-import { MenuSystem, Menu } from "./menu.ts";
+import { MenuSystem } from "./menu.ts";
+import { getTracksMenuItems } from "./menus.ts";
 import { SelectableList } from "./selectablelist.ts";
 
 declare const template_album_view_track: HTMLTemplateElement;
@@ -25,44 +27,7 @@ export class AlbumDisplay {
 
     private static trackIds: number[] = [];
     private static list: SelectableList;
-
-    private static menu: Menu = {
-        menuitems: [
-            {
-                kind: "item",
-                text: "Play all",
-                default: true,
-                click: () => this.playAll()
-            },
-            { kind: "separator" },
-            {
-                kind: "item",
-                text: "Play",
-                click: () => this.play()
-            },
-            {
-                kind: "item",
-                text: "Play next",
-                click: () => this.playNext()
-            },
-            {
-                kind: "item",
-                text: "Add to playlist",
-                click: () => this.addToPlaylist()
-            },
-            { kind: "separator" },
-            {
-                kind: "item",
-                text: "Add to collection",
-            },
-            { kind: "separator" },
-            {
-                kind: "item",
-                text: "Copy metadata as TSV",
-                click: () => this.copyAsTSV()
-            }
-        ]
-    };
+    private static lastCollection: Collection | null;
 
     constructor() {
         throw Error("This static class cannot be instantiated");
@@ -90,17 +55,41 @@ export class AlbumDisplay {
         this.list = SelectableList.register(this.trackTableBody);
 
         MenuSystem.setContextMenu(this.trackTableBody, () => {
-            if (this.list.getSelected().length > 0) {
-                return this.menu
-            } else {
-                return null;
+            const selection = this.list.getSelected().map(index => this.trackIds[index]);
+            if (selection.length == 0) return null;
+            return {
+                menuitems: [
+                    {
+                        kind: "item",
+                        text: "Play all",
+                        default: true,
+                        click: () => this.playAll()
+                    },
+                    { kind: "separator" },
+                    getTracksMenuItems(selection),
+                    { kind: "separator" },
+                    {
+                        kind: "item",
+                        text: "Copy metadata as TSV",
+                        click: () => this.copyAsTSV()
+                    }
+                ]
             }
         });
 
         MusicBrowser.attachObserver(state => this.browserObserver(state));
     }
 
+    private static collectionTrackObserver = (collection: Collection) => {
+        if (MusicBrowser.collection !== collection) return; // we don't care
+
+        this.displayAlbum();
+    }
+
     private static browserObserver(state: BrowserState) {
+        this.lastCollection?.detachTrackObserver(this.collectionTrackObserver);
+        this.lastCollection = null;
+
         if (state.albumId === null) {
             this.hide();
             return;
@@ -108,6 +97,9 @@ export class AlbumDisplay {
 
         this.show();
         this.displayAlbum();
+
+        MusicBrowser.collection?.attachTrackObserver(this.collectionTrackObserver);
+        this.lastCollection = MusicBrowser.collection;
     }
 
     static show() {
@@ -173,27 +165,6 @@ export class AlbumDisplay {
         Playlist.add(...trackIds);
         Playlist.changeTrack(index);
         Player.play();
-    }
-
-    private static play() {
-        const indices = this.list.getSelected();
-        if (indices.length == 0) return; // How did we get here???
-        const tracks = indices.map(index => this.trackIds[index]);
-        Playlist.add(...tracks);
-        Playlist.changeTrack(Playlist.getNumTracks() - tracks.length);
-        Player.play();
-    }
-
-    private static playNext() {
-        const indices = this.list.getSelected();
-        const tracks = indices.map(index => this.trackIds[index]);
-        Playlist.insertNext(...tracks);
-    }
-
-    private static addToPlaylist() {
-        const indices = this.list.getSelected();
-        const tracks = indices.map(index => this.trackIds[index]);
-        Playlist.add(...tracks);
     }
 
     private static copyAsTSV() {

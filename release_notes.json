@@ -111,5 +111,23 @@
             "Fixed a bug where the tracks view of a parent collection did not include its children's tracks",
             "Added a default flag for menu items, enabling double-click execution without opening the menu"
         ]
+    },
+    {
+        "version": "0.3.4",
+        "features": [
+            "Added support for adding tracks to and removing tracks from collections",
+            "Added support for creating collections when adding tracks to them",
+            "Made the volume adjustable by scrolling in addition to clicking and dragging",
+            "Improved first-time experience with dialogs to guide through the setup process"
+        ],
+        "changes": [
+            "Added ellipsis overflow to tree view items that extend beyond the allotted space"
+        ],
+        "bug_fixes": [
+            "Fixed a bug where the number of albums and tracks of an artist did not respect the currently active collection",
+            "Made the menu system more adaptable using callbacks and auto-expanding arrays",
+            "Moved all menu items common to tracks into its own function",
+            "Added observers for collections to automatically update the UI when collections change"
+        ]
     }
 ]

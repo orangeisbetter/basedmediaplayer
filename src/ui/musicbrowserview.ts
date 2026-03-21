@@ -250,11 +250,8 @@ export class MusicBrowserView {
 
     static showTracks() {
         const allTracks = Array.from(Track.getAllIds());
-        console.log(allTracks);
         const collectionTracks = MusicBrowser.collection?.getTrackIds();
-        console.log(collectionTracks);
         const trackIds = collectionTracks ? allTracks.filter(x => collectionTracks.has(x)) : allTracks;
-        console.log(trackIds);
 
         const tracks = trackIds.map(trackId => Track.byID(trackId)!);
         const compareFn: CompareFunction<Track> = compareStack([

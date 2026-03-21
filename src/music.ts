@@ -1,4 +1,4 @@
-import { openDB } from "idb";
+import { IDBPDatabase, openDB } from "idb";
 
 import { Collection } from "./collection.ts";
 import { LibraryTreeView } from "./ui/librarytreeview.ts";
@@ -21,7 +21,7 @@ import { ArtistDisplay } from "./ui/artistdisplay.ts";
 declare const track_list: HTMLDivElement;
 declare const search_bar: HTMLInputElement;
 
-let db: import("idb").IDBPDatabase;
+let db: IDBPDatabase;
 
 // Service worker
 if ('serviceWorker' in navigator) {
@@ -46,28 +46,7 @@ async function initDB(): Promise<boolean> {
             }
 
             if (oldVersion < 2) {
-                const _collectionStore = db.createObjectStore("collections", { keyPath: "id" });
-
-                // collectionStore.put({
-                //     id: 0,
-                //     name: "Soundtrack",
-                //     trackIds: [],
-                //     parent: -1
-                // });
-
-                // collectionStore.put({
-                //     id: 1,
-                //     name: "Game",
-                //     trackIds: [],
-                //     parent: 0
-                // });
-
-                // collectionStore.put({
-                //     id: 2,
-                //     name: "Movie",
-                //     trackIds: [],
-                //     parent: 0
-                // });
+                db.createObjectStore("collections", { keyPath: "id" });
             }
 
             if (oldVersion < 3) {
@@ -144,7 +123,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     Library.loadLibrary(db, rescan).then(() => {
         BreadcrumbsView.init();
         MusicBrowserView.init(db, document.querySelector(".browser-view")!);
-        return Collection.loadAll(db);
+        Collection.init(db);
+        return Collection.loadAll();
     }).then(() => {
         LibraryTreeView.init(document.querySelector("#sidebar")!);
     });

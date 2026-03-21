@@ -10,7 +10,7 @@ export interface MenuSeparator {
     kind: "separator";
 }
 
-export type MenuEntry = MenuItem | MenuSeparator;
+export type MenuEntry = MenuItem | MenuSeparator | MenuEntry[] | (() => MenuEntry | null);
 
 export interface Menu {
     menuitems: MenuEntry[];
@@ -113,7 +113,8 @@ type MenuSource = "bar" | "context";
 
 class MenuView {
     element: HTMLUListElement;
-    items: MenuItemView[] = [];
+    // items: MenuItemView[] = [];
+    numItems: number = 0;
     parent?: MenuView;
     source: MenuSource;
 
@@ -124,18 +125,40 @@ class MenuView {
         this.source = source;
         this.parent = parentItem?.parentMenu;
 
-        for (const entry of menu.menuitems) {
+        const addMenu = (entry: MenuEntry) => {
+            if (typeof entry === "function") {
+                const ret = entry();
+                if (ret === null) return;
+                addMenu(ret);
+                return;
+            }
+            if (Array.isArray(entry)) {
+                for (const item of entry) {
+                    addMenu(item);
+                }
+                return;
+            }
             switch (entry.kind) {
                 case "item": {
                     const item = new MenuItemView(entry, this);
                     this.element.appendChild(item.getElement());
-                    this.items.push(item);
+                    this.numItems++;
                 } break;
                 case "separator": {
                     const separator = new MenuSeparatorView(entry);
                     this.element.appendChild(separator.getElement());
+                    this.numItems++;
                 } break;
             }
+        }
+
+        for (const entry of menu.menuitems) {
+            addMenu(entry);
+        }
+
+        if (this.numItems == 0) {
+            // Get out, this menu is essentially null
+            throw 0;
         }
 
         // Make invisible
@@ -240,7 +263,7 @@ class MenuView {
 type MenuCallback = () => Menu | null;
 
 export class MenuSystem {
-    static contextMenuRegistry: WeakMap<Element, MenuCallback> = new WeakMap();
+    static contextMenuRegistry: WeakMap<Element, MenuCallback | Menu> = new WeakMap();
     static openMenu: MenuView | null = null;
     static activeMenuBarButton: HTMLButtonElement | null = null;
     static activeClickAway: ((event: MouseEvent) => void) | null = null;
@@ -250,7 +273,7 @@ export class MenuSystem {
         document.addEventListener("dblclick", event => this.onDoubleClick(event));
     }
 
-    static setContextMenu(element: Element, menu: MenuCallback) {
+    static setContextMenu(element: Element, menu: MenuCallback | Menu) {
         this.contextMenuRegistry.set(element, menu);
     }
 
@@ -262,6 +285,8 @@ export class MenuSystem {
         element.className = "menubar";
 
         for (const entry of menu.menuitems) {
+            if (typeof entry === "function") continue;
+            if (Array.isArray(entry)) continue;
             if (entry.kind === "item") {
                 const button = document.createElement("button");
                 button.className = "menubar-item";
@@ -316,37 +341,62 @@ export class MenuSystem {
         };
 
         for (let element = event.target as Element | null; element; element = element.parentElement) {
-            const menuCallback = this.contextMenuRegistry.get(element);
-            if (!menuCallback) {
-                continue;
+            let menu = this.contextMenuRegistry.get(element);
+            if (!menu) continue;
+
+            if (typeof menu === "function") {
+                const ret = menu();
+                if (!ret) continue;
+                menu = ret;
             }
 
-            const menu = menuCallback();
-            if (!menu) {
-                continue;
+            try {
+                this.openMenu = new MenuView(menu, { type: "direct", x: event.clientX, y: event.clientY }, "context");
+                event.preventDefault();
+                return;
+            } catch (err) {
+                // what am I supposed to do here
+                if (typeof err !== "number" || err !== 0) throw err;
             }
-
-            event.preventDefault();
-            this.openMenu = new MenuView(menu, { type: "direct", x: event.clientX, y: event.clientY }, "context");
-            return;
         }
     }
 
     static onDoubleClick(event: MouseEvent): void {
         // Try to find a menu with a default action bound, and if it can find one, then do it and
         // prevent the default action. Otherwise, do nothing
-        for (let element = event.target as Element | null; element; element = element.parentElement) {
-            const menuCallback = this.contextMenuRegistry.get(element);
-            if (!menuCallback) continue;
 
-            const menu = menuCallback();
+        const tryItem = (entry: MenuEntry): ((() => void) | null) => {
+            if (typeof entry === "function") {
+                const ret = entry();
+                if (ret === null) return null;
+                tryItem(ret);
+                return null;
+            }
+            if (Array.isArray(entry)) {
+                for (const item of entry) {
+                    const ret = tryItem(item);
+                    if (ret) return ret;
+                }
+                return null;
+            }
+            if (entry.kind !== "item" || !entry.default || !entry.click) return null;
+
+            return entry.click;
+        }
+
+        for (let element = event.target as Element | null; element; element = element.parentElement) {
+            let menu = this.contextMenuRegistry.get(element);
             if (!menu) continue;
 
-            for (const item of menu.menuitems) {
-                if (item.kind === "separator" || !item.default || !item.click) continue;
+            if (typeof menu === "function") {
+                const ret = menu();
+                if (!ret) continue;
+                menu = ret;
+            }
 
-                event.preventDefault();
-                item.click();
+            for (const item of menu.menuitems) {
+                const click = tryItem(item);
+                if (click) click();
                 return;
             }
         }
