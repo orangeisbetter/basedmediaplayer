@@ -1,3 +1,4 @@
+import { CassetteRecorderView } from "./cassetterecorderview.ts";
 import { Menu, MenuSystem } from "./menu.ts";
 import { showReleaseNotesDialog } from "./releasenotes.ts";
 
@@ -33,18 +34,19 @@ export class MenuBar {
                     ]
                 }
             },
-            // {
-            //     kind: "item",
-            //     text: "Tools",
-            //     submenu: {
-            //         menuitems: [
-            //             {
-            //                 kind: "item",
-            //                 text: "Cassette Recorder"
-            //             }
-            //         ]
-            //     }
-            // },
+            {
+                kind: "item",
+                text: "Tools",
+                submenu: {
+                    menuitems: [
+                        {
+                            kind: "item",
+                            text: "Cassette Recorder",
+                            click: () => CassetteRecorderView.showDialog()
+                        }
+                    ]
+                }
+            },
             {
                 kind: "item",
                 text: "Help",

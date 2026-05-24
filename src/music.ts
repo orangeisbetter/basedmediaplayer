@@ -17,6 +17,7 @@ import { BreadcrumbsView } from "./ui/breadcrumbsview.ts";
 import { MusicBrowser } from "./musicbrowser.ts";
 import { ResizablePanels } from "./ui/resizablepanel.ts";
 import { ArtistDisplay } from "./ui/artistdisplay.ts";
+import { CassetteRecorderView } from "./ui/cassetterecorderview.ts";
 
 declare const track_list: HTMLDivElement;
 declare const search_bar: HTMLInputElement;
@@ -94,6 +95,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     MenuSystem.init();
     MenuBar.init(document.querySelector("#menubar")!);
+    CassetteRecorderView.init();
     MusicBrowser.init();
 
     PlaybackController.init();

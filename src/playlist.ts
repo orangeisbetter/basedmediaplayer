@@ -255,7 +255,7 @@ export class Playlist {
      * @param trackIndex The index in the playlist of the track to change to.
      */
     static changeTrack(trackIndex: number) {
-        if (trackIndex >= 0 && trackIndex < Playlist.list.length && Playlist.currentTrackIdx !== trackIndex) {
+        if (trackIndex >= 0 && trackIndex < Playlist.list.length) {
             Playlist.currentTrackIdx = trackIndex;
             Playlist.events.trackChange.emit({ index: Playlist.currentTrackIdx, id: Playlist.currentTrackId });
         }
@@ -355,6 +355,15 @@ export class Playlist {
      */
     static getNumTracks() {
         return Playlist.list.length;
+    }
+
+    /**
+     * @param index The index of the playlist
+     * @returns the track ID in the specified index in the playlist, or `null` if the index is out of bounds.
+     */
+    static getTrackByIndex(index: number): number | null {
+        if (index < 0 || index >= Playlist.list.length) return null;
+        return Playlist.list[index];
     }
 
     /**

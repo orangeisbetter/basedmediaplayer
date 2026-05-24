@@ -129,6 +129,86 @@
             </div>
         </form>
     </dialog>
+    <dialog style="width: 500px" id="cassette-recorder-split-info-dialog">
+        <div class="content">
+            <h2>Track Splitting Modes</h2>
+            <p>These modes control how tracks are assigned between side A and side B.</p>
+            <h3>Rollover</h3>
+            <p>Places tracks on side A until the next track no longer fits, then continues onto side B.</p>
+            <p>This mode does not guarantee that side A will be longer than side B.</p>
+            <h3>Even</h3>
+            <p>Attempts to balance the total playback time between both sides while preserving track order.</p>
+            <p>This mode guarantees that side A will be at least as long as side B.</p>
+            <h3>Optimal</h3>
+            <p>Attempts to split tracks between side A and side B in a way that minimizes unused tape space by keeping both sides as close in total length as possible.</p>
+            <p>This mode uses a linear heuristic to approximate the best split, since calculating the true optimal split would require exponential time.</p>
+            <p>This mode guarantees that side A will be longer than side B.</p>
+        </div>
+        <div class="button-bar">
+            <div class="glue"></div>
+            <button onclick="this.closest('dialog').close()">Close</button>
+        </div>
+    </dialog>
+    <dialog style="width: 400px" id="cassette-recorder-dialog">
+        <div class="content">
+            <h2>Cassette Recorder</h2>
+            <fieldset>
+                <legend>Options</legend>
+                <div style="display: grid; grid-template-columns: max-content 3fr 2fr; gap: 4px; align-items: center;">
+                    <label for="tape-length-sel" style="grid-column: span 2; align-self: center;">Tape length</label>
+                    <select id="tape-length-sel">
+                        <option value="60">C60</option>
+                        <option value="90" selected>C90</option>
+                        <option value="120">C120</option>
+                        <option value="0">Don't limit</option>
+                    </select>
+                    <input type="checkbox" id="single-side-cb" style="margin: 2px; align-self: center;">
+                    <label for="single-side-cb" style="grid-column: span 2; align-self: center;">Single side only</label>
+                    <label for="split-sel" style="grid-column: span 2; align-self: center;">Track splitting mode (<a class="nohover" onclick="document.getElementById('cassette-recorder-split-info-dialog').showModal()">more info</a>)</label>
+                    <select id="split-sel">
+                        <option value="0" selected id="rollover">Rollover</option>
+                        <option value="1">Even</option>
+                        <option value="2">Optimal</option>
+                    </select>
+                    <label for="gap-length-ip" style="grid-column: span 2; align-self: center;">Gap between tracks (seconds)</label>
+                    <input type="number" id="gap-length-ip" min="0" value="1" step="0.5" style="align-self: center">
+                    <input type="checkbox" id="flip-reminder-cb" style="margin: 2px; align-self: center;" disabled>
+                    <label for="flip-reminder-cb" style="grid-column: span 2; align-self: center;">Play flip signal</label>
+                </div>
+            </fieldset>
+            <button id="calculate-btn" style="margin-block-start: 8px;">Calculate</button>
+            <fieldset style="margin-block-start: 8px;">
+                <legend>Info</legend>
+                <div style="display: grid; grid-template-columns: auto auto; gap: 4px;">
+                    <span style="font-weight: bold; grid-column: span 2;">Side A</span>
+                    <span>Track duration</span>
+                    <span id="sidea-track-duration">-</span>
+                    <span>Gap length</span>
+                    <span id="sidea-gap-length">-</span>
+                    <span>Total duration</span>
+                    <span id="sidea-total-duration">-</span>
+                    <span>Remaining space</span>
+                    <span id="sidea-rem-space">-</span>
+                    <span style="font-weight: bold; grid-column: span 2;">Side B</span>
+                    <span>Track duration</span>
+                    <span id="sideb-track-duration">-</span>
+                    <span>Gap length</span>
+                    <span id="sideb-gap-length">-</span>
+                    <span>Total duration</span>
+                    <span id="sideb-total-duration">-</span>
+                    <span>Remaining space</span>
+                    <span id="sideb-rem-space">-</span>
+                </div>
+            </fieldset>
+        </div>
+        <div class="button-bar">
+            <div class="glue"></div>
+            <button id="start-a-btn" disabled>Start A</button>
+            <button id="start-b-btn" disabled>Start B</button>
+            <button id="stop-btn" disabled>Stop</button>
+            <button id="close-btn" onclick="this.closest('dialog').close()">Close</button>
+        </div>
+    </dialog>
     <div class="sidebar resizable-panel resize-right" style="--size: 200px" data-min-size="150" data-default-size="200">
         <div class="resize-handle"></div>
         <div id="sidebar"></div>

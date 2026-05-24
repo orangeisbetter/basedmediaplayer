@@ -129,5 +129,17 @@
             "Moved all menu items common to tracks into its own function",
             "Added observers for collections to automatically update the UI when collections change"
         ]
+    },
+    {
+        "version": "0.4.0",
+        "features": [
+            "Created cassette recorder tool"
+        ],
+        "changes": [
+            "Updated the playlist so that when a track change is made, it always updates, even if it is changed to the same track as is currently playing"
+        ],
+        "bug_fixes": [
+            "Updated the media controls so they are disabled while the cassette recorder is playing"
+        ]
     }
 ]

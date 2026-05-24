@@ -7,6 +7,10 @@ export class Emitter<T> {
         this.listeners.push(listener);
     }
 
+    removeListener(listener: Listener<T>) {
+        this.listeners = this.listeners.filter(test => test != listener);
+    }
+
     emit(payload: T) {
         this.listeners.forEach(listener => listener(payload));
     }

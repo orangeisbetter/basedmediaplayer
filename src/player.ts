@@ -13,7 +13,7 @@ export class Player {
 
     private static audioContext: AudioContext;
     private static gainNode: GainNode;
-    private static audio: HTMLAudioElement;
+    public static audio: HTMLAudioElement;
     private static track: MediaElementAudioSourceNode;
 
     private static loadPromise: Promise<void> = Promise.resolve();
@@ -133,5 +133,49 @@ export class Player {
 
     static getCurrentTrack(): Track | null {
         return Player.currentTrack;
+    }
+
+    static playAudioDirect(path: string): Promise<void> {
+        Player.audioContext.resume();
+
+        Player.audio.pause();
+        Player.playing = false;
+
+        return new Promise<void>((resolve, reject) => {
+            const endedHandler = () => {
+                cleanup();
+
+                Player.audio.pause();
+                Player.audio.currentTime = 0;
+                Player.playing = false;
+
+                resolve();
+            };
+
+            const errorHandler = () => {
+                cleanup();
+                reject(new Error(`Failed to play signal: ${path}`));
+            };
+
+            const cleanup = () => {
+                Player.audio.removeEventListener("ended", endedHandler);
+                Player.audio.removeEventListener("error", errorHandler);
+            };
+
+            Player.audio.addEventListener("ended", endedHandler);
+            Player.audio.addEventListener("error", errorHandler);
+
+            Player.audio.src = path;
+            Player.audio.currentTime = 0;
+
+            const promise = Player.audio.play();
+
+            if (promise) {
+                promise.catch(error => {
+                    cleanup();
+                    reject(error);
+                });
+            }
+        });
     }
 }

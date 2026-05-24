@@ -1,17 +1,31 @@
 import { Player } from "./player.ts";
-import { Playlist } from "./playlist.ts";
+import { Playlist, PlaylistTrackChangeEventData } from "./playlist.ts";
 
 export class PlaybackController {
+    private static autoplayEnabled: boolean;
+
     static init() {
         Playlist.events.trackChange.addListener(this.onTrackChange);
-        Player.events.finish.addListener(this.onTrackFinished);
+        this.autoplayOn();
     }
 
-    private static onTrackChange({ id }: { id: number | null }) {
+    static autoplayOff() {
+        if (!this.autoplayEnabled) return;
+        Player.events.finish.removeListener(this.onTrackFinished);
+        this.autoplayEnabled = false;
+    }
+
+    static autoplayOn() {
+        if (this.autoplayEnabled) return;
+        Player.events.finish.addListener(this.onTrackFinished);
+        this.autoplayEnabled = true;
+    }
+
+    static onTrackChange = ({ id }: PlaylistTrackChangeEventData) => {
         Player.changeTrack(id);
     }
 
-    private static onTrackFinished() {
+    static onTrackFinished = () => {
         if (Playlist.autoNext() !== null) {
             Player.play();
         }

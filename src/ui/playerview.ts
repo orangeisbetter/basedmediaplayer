@@ -304,8 +304,32 @@ export class PlayerView {
         }
     }
 
+    private static mediaControlsEnabled: boolean = true;
+
+    static enableMediaControls() {
+        this.mediaControlsEnabled = true;
+        if (this.trackId !== null) {
+            navigator.mediaSession.setActionHandler("play", () => Player.play());
+            navigator.mediaSession.setActionHandler("pause", () => Player.pause());
+            navigator.mediaSession.setActionHandler("previoustrack", () => PlaybackController.skipPreviousAndPlay());
+            navigator.mediaSession.setActionHandler("nexttrack", () => PlaybackController.skipNextAndPlay());
+            navigator.mediaSession.setActionHandler("stop", () => Playlist.clear());
+        }
+    }
+
+    static disableMediaControls() {
+        this.mediaControlsEnabled = false;
+        if (this.trackId !== null) {
+            navigator.mediaSession.setActionHandler("play", null);
+            navigator.mediaSession.setActionHandler("pause", null);
+            navigator.mediaSession.setActionHandler("previoustrack", null);
+            navigator.mediaSession.setActionHandler("nexttrack", null);
+            navigator.mediaSession.setActionHandler("stop", null);
+        }
+    }
+
     private static trackChangeHandler({ id }: PlaylistTrackChangeEventData) {
-        if (this.trackId === null && id !== null) {
+        if (this.mediaControlsEnabled && this.trackId === null && id !== null) {
             navigator.mediaSession.setActionHandler("play", () => Player.play());
             navigator.mediaSession.setActionHandler("pause", () => Player.pause());
             navigator.mediaSession.setActionHandler("previoustrack", () => PlaybackController.skipPreviousAndPlay());
@@ -315,11 +339,13 @@ export class PlayerView {
             navigator.mediaSession.playbackState = "none";
             navigator.mediaSession.metadata = null;
 
-            navigator.mediaSession.setActionHandler("play", null);
-            navigator.mediaSession.setActionHandler("pause", null);
-            navigator.mediaSession.setActionHandler("previoustrack", null);
-            navigator.mediaSession.setActionHandler("nexttrack", null);
-            navigator.mediaSession.setActionHandler("stop", null);
+            if (this.mediaControlsEnabled) {
+                navigator.mediaSession.setActionHandler("play", null);
+                navigator.mediaSession.setActionHandler("pause", null);
+                navigator.mediaSession.setActionHandler("previoustrack", null);
+                navigator.mediaSession.setActionHandler("nexttrack", null);
+                navigator.mediaSession.setActionHandler("stop", null);
+            }
         }
 
         this.trackId = id;
