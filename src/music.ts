@@ -18,6 +18,9 @@ import { MusicBrowser } from "./musicbrowser.ts";
 import { ResizablePanels } from "./ui/resizablepanel.ts";
 import { ArtistDisplay } from "./ui/artistdisplay.ts";
 import { CassetteRecorderView } from "./ui/cassetterecorderview.ts";
+import { Album } from "./album.ts";
+import { Track } from "./track.ts";
+import { Artist } from "./artist.ts";
 
 declare const track_list: HTMLDivElement;
 declare const search_bar: HTMLInputElement;
@@ -34,11 +37,11 @@ if ('serviceWorker' in navigator) {
 
 async function initDB(): Promise<boolean> {
     let rescan = false;
-    db = await openDB("music-library", 4, {
+    db = await openDB("music-library", 5, {
         upgrade(db, oldVersion, _newVersion, transaction) {
             if (oldVersion < 1) {
-                db.createObjectStore("albums", { keyPath: "id" });
-                db.createObjectStore("tracks", { keyPath: "id" });
+                db.createObjectStore(Album.STORE_NAME, { keyPath: "id" });
+                db.createObjectStore(Track.STORE_NAME, { keyPath: "id" });
 
                 const configStore = db.createObjectStore("config");
                 configStore.put(0, "volume");
@@ -47,7 +50,7 @@ async function initDB(): Promise<boolean> {
             }
 
             if (oldVersion < 2) {
-                db.createObjectStore("collections", { keyPath: "id" });
+                db.createObjectStore(Collection.STORE_NAME, { keyPath: "id" });
             }
 
             if (oldVersion < 3) {
@@ -58,10 +61,25 @@ async function initDB(): Promise<boolean> {
             }
 
             if (oldVersion < 4) {
-                db.createObjectStore("artists", { keyPath: "id" });
+                db.createObjectStore(Artist.STORE_NAME, { keyPath: "id" });
 
                 // Library rescan necessary
                 rescan = true;
+            }
+
+            if (oldVersion < 5) {
+                db.createObjectStore("files", { keyPath: "id", autoIncrement: true });
+
+				// reset modified object stores
+				db.deleteObjectStore(Track.STORE_NAME);
+				db.deleteObjectStore(Album.STORE_NAME);
+				db.deleteObjectStore(Artist.STORE_NAME);
+				db.deleteObjectStore(Collection.STORE_NAME);
+
+                db.createObjectStore(Track.STORE_NAME, { keyPath: "id" });
+                db.createObjectStore(Album.STORE_NAME, { keyPath: "id" });
+                db.createObjectStore(Artist.STORE_NAME, { keyPath: "id" });
+                db.createObjectStore(Collection.STORE_NAME, { keyPath: "id" });
             }
         }
     });
@@ -90,6 +108,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     const rescan = await initDB();
 
     ResizablePanels.init();
+
+    document.addEventListener('load', (e) => {
+        if (!(e.target instanceof HTMLImageElement)) return;
+        const img = e.target;
+        const aspect = img.naturalWidth / img.naturalHeight;
+        img.style.setProperty('--aspect', String(aspect));
+    }, true);
 
     // getAnonymousUsageConsent();
 

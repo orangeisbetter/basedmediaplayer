@@ -1,3 +1,5 @@
+import { changeIcon } from "../util/icons.ts";
+
 declare const tree_list_item: HTMLTemplateElement;
 declare const tree_list: HTMLTemplateElement;
 
@@ -74,11 +76,11 @@ export class TreeViewChildNode extends TreeViewNode {
     protected createElement(options: { iconName?: string, onClick?: TreeViewChildNodeClickHandler }) {
         this.element = document.importNode(tree_list_item.content, true).firstElementChild as HTMLElement;
 
-        const icon = this.element.querySelector("iconify-icon");
+        const icon = this.element.querySelector("svg")!;
         if (options.iconName === undefined) {
-            icon!.parentElement!.remove();
+            icon.parentElement!.remove();
         } else {
-            icon!.setAttribute("icon", options.iconName);
+            changeIcon(icon, options.iconName);
         }
 
         const caret = this.element.querySelector(".caret")!;

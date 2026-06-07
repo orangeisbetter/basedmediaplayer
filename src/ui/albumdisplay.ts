@@ -20,14 +20,20 @@ export class AlbumDisplay {
     private static addToPlaylistButton: HTMLButtonElement;
     private static trackTableBody: HTMLTableSectionElement;
 
-    private static coverElement: HTMLImageElement;
+    private static coverImageElement: HTMLImageElement;
+    private static coverLeftButton: HTMLButtonElement;
+    private static coverRightButton: HTMLButtonElement;
+    private static coverIndexLabel: HTMLElement;
     private static albumNameElement: HTMLElement;
     private static albumArtistElement: HTMLAnchorElement;
     private static albumInfoElement: HTMLElement;
 
+    private static coverIndex: number = 0;
+
     private static trackIds: number[] = [];
     private static list: SelectableList;
-    private static lastCollection: Collection | null;
+    private static lastAlbumId: number | null = null;
+    private static lastCollection: Collection | null = null;
 
     constructor() {
         throw Error("This static class cannot be instantiated");
@@ -41,7 +47,10 @@ export class AlbumDisplay {
         this.addToPlaylistButton = this.rootElement.querySelector("#add_to_playlist_btn")!;
         this.trackTableBody = this.rootElement.querySelector("tbody")!;
 
-        this.coverElement = this.rootElement.querySelector("#album-cover")!;
+        this.coverImageElement = this.rootElement.querySelector("#album-cover-img")!;
+        this.coverLeftButton = this.rootElement.querySelector("#cover-left-btn")!;
+        this.coverRightButton = this.rootElement.querySelector("#cover-right-btn")!;
+        this.coverIndexLabel = this.rootElement.querySelector("#cover-index-lbl")!;
         this.albumNameElement = this.rootElement.querySelector("#album-name")!;
         this.albumArtistElement = this.rootElement.querySelector("#album-artist")!;
         this.albumInfoElement = this.rootElement.querySelector("#album-info")!;
@@ -78,12 +87,59 @@ export class AlbumDisplay {
         });
 
         MusicBrowser.attachObserver(state => this.browserObserver(state));
+
+        this.coverLeftButton.addEventListener("click", () => {
+            if (this.coverIndex < 0) return;
+            this.coverIndex--;
+
+            const album = Album.byID(MusicBrowser.albumId!)!;
+            this.coverImageElement.src = album.getCoverURL(this.coverIndex);
+
+			this.updateCoverIndexLabel(album);
+
+            this.enableDisableCoverButtons();
+        });
+
+        this.coverRightButton.addEventListener("click", () => {
+            const album = Album.byID(MusicBrowser.albumId!)!;
+            if (this.coverIndex >= album.covers.length - 1) return;
+            this.coverIndex++;
+            
+            this.coverImageElement.src = album.getCoverURL(this.coverIndex);
+
+			this.updateCoverIndexLabel(album);
+
+            this.enableDisableCoverButtons();
+        })
+    }
+
+	private static updateCoverIndexLabel(album: Album) {
+		if (album.covers.length > 0) {
+			this.coverIndexLabel.textContent = `${this.coverIndex + 1} / ${album.covers.length}`;
+		} else {
+			this.coverIndexLabel.textContent = `0 / 0`;
+		}
+	}
+
+    private static enableDisableCoverButtons() {
+        if (this.coverIndex > 0) {
+            this.coverLeftButton.disabled = false;
+        } else {
+            this.coverLeftButton.disabled = true;
+        }
+
+        const album = Album.byID(MusicBrowser.albumId!)!;
+        if (this.coverIndex < album.covers.length - 1) {
+            this.coverRightButton.disabled = false;
+        } else {
+            this.coverRightButton.disabled = true;
+        }
     }
 
     private static collectionTrackObserver = (collection: Collection) => {
         if (MusicBrowser.collection !== collection) return; // we don't care
 
-        this.displayAlbum();
+        this.displayAlbum(false);
     }
 
     private static browserObserver(state: BrowserState) {
@@ -95,8 +151,12 @@ export class AlbumDisplay {
             return;
         }
 
+        const reset = state.albumId !== this.lastAlbumId;
+
         this.show();
-        this.displayAlbum();
+        this.displayAlbum(reset);
+
+        this.lastAlbumId = state.albumId;
 
         MusicBrowser.collection?.attachTrackObserver(this.collectionTrackObserver);
         this.lastCollection = MusicBrowser.collection;
@@ -110,8 +170,12 @@ export class AlbumDisplay {
         this.rootElement.style.display = "none";
     }
 
-    private static displayAlbum() {
+    private static displayAlbum(reset: boolean) {
         const album = Album.byID(MusicBrowser.albumId!)!;
+
+        if (reset) {
+            this.coverIndex = 0;
+        }
 
         this.trackTableBody.innerHTML = "";
 
@@ -123,14 +187,30 @@ export class AlbumDisplay {
             this.trackTableBody.appendChild(AlbumDisplay.getTrackElement(track));
         }
 
-        this.coverElement.src = album.getCoverURL();
+        this.coverImageElement.src = album.getCoverURL();
+
+		this.updateCoverIndexLabel(album);
+
+        this.enableDisableCoverButtons();
 
         this.albumNameElement.textContent = album.name ?? "Unknown album";
         this.albumArtistElement.textContent = album.getArtistName() ?? "Unknown artist";
 
-        const duration = this.trackIds.reduce((prev, current) => prev + Track.byID(current)!.duration, 0);
+		const trackYears = [...new Set(album.trackIds
+			.map(trackId => {
+				const track = Track.byID(trackId)!
+				return track.year;
+			})
+			.filter(year => year !== undefined))];
+		let yearText = null;
+		if (trackYears.length > 1) {
+			yearText = `${trackYears.reduce((prev, curr) => curr < prev ? curr : prev, Number.MAX_SAFE_INTEGER)}+`;
+		} else if (trackYears.length == 1) {
+			yearText = `${trackYears.reduce((prev, curr) => curr < prev ? curr : prev, Number.MAX_SAFE_INTEGER)}`;
+		}
         const numTracks = this.trackIds.length;
-        this.albumInfoElement.textContent = `${numTracks} track${numTracks != 1 ? "s" : ""} • ${convertTime(duration)}`;
+        const duration = this.trackIds.reduce((prev, current) => prev + Track.byID(current)!.duration, 0);
+        this.albumInfoElement.textContent = `${yearText !== null ? `${yearText} • ` : ""}${numTracks} track${numTracks != 1 ? "s" : ""} • ${convertTime(duration)}`;
 
         this.rootElement.scroll({ top: 0 });
     }

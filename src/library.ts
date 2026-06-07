@@ -1,9 +1,8 @@
-import { IDBPDatabase } from "idb";
+import { IDBPDatabase, IDBPTransaction } from "idb";
 import { Album } from "./album.ts";
 import { ProtoTrack, Track } from "./track.ts";
-import { asyncPool, ensureReadPermission, FileInfo, getHandlesRecursively } from "./filesystem.ts";
+import { ensureReadPermission, FileSystem, FileSystemFile, ScanResult } from "./filesystem.ts";
 import { Artist } from "./artist.ts";
-import { arraysEqual } from "./util/arrays.ts";
 
 interface Window {
     showDirectoryPicker: () => Promise<FileSystemDirectoryHandle>
@@ -116,149 +115,278 @@ export class Library {
         loadSuccessDialog.showModal();
     }
 
-    static async loadLibrary(db: IDBPDatabase, rescan: boolean) {
-        if (await db.count("tracks") > 0 && await db.count("albums") > 0 && !rescan) {
-            await Track.loadAll(db);
-            await Album.loadAll(db);
-            await Artist.loadAll(db);
+    static processDeletedFiles(tx: IDBPTransaction<unknown, string[], "readwrite">, deleted: FileSystemFile[], changedAlbums: Set<number>, progressBar: HTMLProgressElement, loadingLabel: HTMLElement) {
+		progressBar.max = deleted.length;
 
-            Track.linkToArtists();
-            Album.linkToArtists();
-            return;
-        }
+		for (let i = 0; i < deleted.length; i++) {
+			const info = deleted[i];
+            const trackId = Track.fileIdToTrackId.get(info.id);
+            if (trackId !== undefined) {
+                // Delete corresponding track (if exists)
+                const track = Track.byID(trackId)!;
+                const album = Album.byID(track.albumId)!;
+                album.removeCover(info.id);
 
-        db.clear("tracks");
-        db.clear("albums");
-        db.clear("artists");
-
-        const albums: Album[] = [];
-
-        let dirHandle = await this.loadRootHandle(db);
-        if (!dirHandle || !await ensureReadPermission(dirHandle)) {
-            this.testSupported();
-            dirHandle = await this.showSelectLibraryDialog();
-            await this.saveRootHandle(db, dirHandle);
-        }
-
-        load_dialog.showModal();
-
-        loading_lbl.textContent = "Scanning library files...";
-
-        const items: FileInfo[] = [];
-        for await (const file of getHandlesRecursively(dirHandle as FileSystemHandle)) {
-            items.push(file);
-        }
-
-        const progress_bar = document.getElementById("progress_bar")! as HTMLProgressElement;
-        progress_bar.max = items.length;
-
-        const covers: Map<FileSystemDirectoryHandle, Uint8Array> = new Map();
-
-        let countDone = 0;
-        const protos: ProtoTrack[] = [];
-        await asyncPool(4, items, async ({ path, handle, dir }) => {
-            const file = await handle.getFile();
-            if (file.type.startsWith("audio")) {
-                const proto = await Track.getTrackMetadata(file, handle, dir, path);
-                if (proto) {
-                    protos.push(proto);
+                // Find any other tracks in this directory from this album
+                const dirFiles = FileSystem.getFilesInDirectory(FileSystem.getDirectoryPath(info.path));
+                let other = false;
+                const coverIds = [];
+                for (const fileId of dirFiles) {
+                    const otherTrackId = Track.fileIdToTrackId.get(fileId);
+                    if (otherTrackId !== undefined) {
+                        if (otherTrackId !== trackId && album.trackIds.includes(otherTrackId)) {
+                            // We know there's another track from this album in this directory, so any cover in this directory is also
+                            // "used" by the other track. We can break out, as there is not going to be anything to do.
+                            other = true;
+                            break;
+                        }
+                        continue;
+                    }
+                    const fileInfo = FileSystem.getFileByID(fileId)!;
+                    if (!this.isCoverImage(fileInfo.mimeType, FileSystem.getFileName(fileInfo.path))) {
+                        continue;
+                    }
+                    coverIds.push(fileId);
                 }
-            } else if (file.type.startsWith("image") && /^(folder|cover)\..*/i.test(handle.name)) {
-                covers.set(dir, new Uint8Array(await file.arrayBuffer()));
-            }
-            countDone++;
-            progress_bar.value = countDone;
-            loading_lbl.textContent = `${countDone} / ${items.length} files scanned`;
-        });
 
-        loading_lbl.textContent = `Constructing albums from ${protos.length} discovered tracks`;
-
-        // Build albums from tracks
-        for (const proto of protos) {
-            const albumName = proto.tag.album;
-            const albumLower = albumName?.toLowerCase();
-
-            const newAlbumArtist = proto.tag.albumartist ? Artist.getOrCreate(proto.tag.albumartist) : undefined;
-
-            let album = albums.find(album => album.name?.toLowerCase() === albumLower && album.artist === newAlbumArtist);
-            if (!album) {
-                album = new Album();
-                album.name = albumName;
-                album.artist = newAlbumArtist;
-                albums.push(album);
-            }
-
-            const track = Track.createFromProtoTrack(proto, album.id);
-            album.trackIds.push(track.id);
-
-            const tryNewCover = function (album: Album, track: Track | null, imageData: Uint8Array) {
-                // Check to see if cover is already included
-                let found = false;
-                for (let i = 0; i < album.covers.length; i++) {
-                    const cover = album.covers[i];
-                    if (arraysEqual(imageData, cover)) {
-                        if (track !== null) track.coverIndex ??= i;
-                        found = true;
-                        break;
+                if (!other) {
+                    for (const coverId of coverIds) {
+                        album.removeCover(coverId);
                     }
                 }
 
-                if (!found) {
-                    album.covers.push(imageData);
-                    if (track !== null) track.coverIndex ??= album.covers.length - 1;
+                track.delete(tx);
+				changedAlbums.add(track.albumId);
+            } else {
+                // delete cover image
+                const dirFiles = FileSystem.getFilesInDirectory(FileSystem.getDirectoryPath(info.path));
+                for (const fileId of dirFiles) {
+                    const trackId = Track.fileIdToTrackId.get(fileId);
+                    if (trackId === undefined) continue;
+                    const track = Track.byID(trackId)!;
+                    const album = Album.byID(track.albumId)!;
+                    album.removeCover(info.id);
                 }
             }
 
-            // Add covers
-            if (proto.tag.picture && proto.tag.picture.length > 0) {
-                // For each embedded cover (could be multiple)
-                for (const picture of proto.tag.picture) {
-                    tryNewCover(album, track, picture.data);
-                }
-            }
-
-            const dirCover = covers.get(proto.dir);
-            if (dirCover !== undefined) {
-                tryNewCover(album, null, dirCover);
-            }
+            // Update progress bar
+            progressBar.value = i + 1;
+            loadingLabel.textContent = `Removed file ${i + 1} / ${deleted.length}`;
         }
+    }
 
-        for (const album of albums) {
-            album.trackIds.sort((a, b) => {
-                const trackA = Track.byID(a)!;
-                const trackB = Track.byID(b)!;
+    // static async processChangedFiles(tx: IDBPTransaction<unknown, string[], "readwrite">, changed: ScannedFile[], progressBar: HTMLProgressElement) {
 
-                if (trackA.disc !== trackB.disc) {
-                    return (trackA.disc ?? 0) - (trackB.disc ?? 0);
-                }
+    // }
 
-                if (trackA.no !== trackB.no) {
-                    return (trackA.no ?? 0) - (trackB.no ?? 0);
-                }
+    private static isCoverImage(mimeType: string, filename: string) {
+        return mimeType.startsWith("image") && /^(folder|cover)\..*/i.test(filename);
+    }
 
-                return (trackA.title ?? "").localeCompare(trackB.title ?? "");
-            });
+    private static getOrCreateAlbum(albums: Album[], albumName: string | undefined, albumArtist: number | undefined): Album {
+        const albumNameLower = albumName?.toLowerCase();
+        let album = albums.find(album => album.name?.toLowerCase() === albumNameLower && album.artist === albumArtist);
+        if (!album) {
+            album = new Album();
+            album.name = albumName;
+            album.artist = albumArtist;
+            albums.push(album);
         }
+        return album;
+    }
 
-        loading_lbl.textContent = "Writing library to indexedDB...";
+    static async updateLibrary(db: IDBPDatabase, dirHandle: FileSystemDirectoryHandle): Promise<ScanResult> {
+        load_dialog.showModal();
+
+        loading_lbl.textContent = "Scanning for library changes...";
+
+        const changes = await FileSystem.scan(db, dirHandle, file => (
+            file.type.startsWith("audio") ||
+            this.isCoverImage(file.type, file.name)
+        ));
+        console.log(changes);
+
+        const deleted = [...changes.removedFiles];
+        deleted.push(...changes.changedFiles);
+
+        const added = [...changes.newFiles];
+        added.push(...changes.changedFiles);
+
+        const progress_bar = document.getElementById("progress_bar")! as HTMLProgressElement;
+
+        const changedTracks = new Set<number>();
+        const changedAlbums = new Set<number>();
+        const changedArtists = new Set<number>();
+
+        const deleteTransaction = db.transaction([Track.STORE_NAME, Album.STORE_NAME, Artist.STORE_NAME, "collections"], "readwrite");
+        this.processDeletedFiles(deleteTransaction, deleted, changedAlbums, progress_bar, loading_lbl);
+        deleteTransaction.commit();
+
+		// Remove any deleted albums from changed albums set, so as to not actually update
+		for (const albumId of [...changedAlbums]) {
+			const album = Album.byID(albumId);
+			if (album === undefined) {
+				changedAlbums.delete(albumId);
+			}
+		}
+
+        let countDone = 0;
+        progress_bar.max = added.length;
+
+        const protos: ProtoTrack[] = [];
+		for (const { id, handle, path, mimeType } of added) {
+            const file = await handle.getFile();
+            if (this.isCoverImage(mimeType, file.name)) {
+                const dirPath = FileSystem.getDirectoryPath(path);
+                const data = new Uint8Array(await file.arrayBuffer());
+                const dirFiles = FileSystem.getFilesInDirectory(dirPath);
+                for (const fileId of dirFiles) {
+                    const trackId = Track.fileIdToTrackId.get(fileId);
+                    if (trackId === undefined) continue;
+                    const track = Track.byID(trackId)!;
+                    const album = Album.byID(track.albumId)!;
+                    album.addCover(id, data);
+                    changedAlbums.add(album.id);
+                }
+            } else {
+                // is audio, by scan filter above
+                const proto = await Track.getTrackMetadata(file, id, path);
+                if (proto) {
+                    protos.push(proto);
+                }
+            }
+            countDone++;
+            progress_bar.value = countDone;
+            loading_lbl.textContent = `Added new file ${countDone} / ${added.length}`;
+		}
+
+        loading_lbl.textContent = `Constructing albums from ${protos.length} discovered tracks`;
         progress_bar.removeAttribute("max");
         progress_bar.removeAttribute("value");
 
+        // Preload with existing albums
+        const albums = [...Album.albums.values()];
+
+        // Add tracks to album or create one if the album does not exist
+        for (const proto of protos) {
+            const albumName = proto.tag.album;
+
+            const newAlbumArtist = proto.tag.albumartist ? Artist.getOrCreate(proto.tag.albumartist, changedArtists) : undefined;
+
+            const album = this.getOrCreateAlbum(albums, albumName, newAlbumArtist);
+
+            const track = Track.createFromProtoTrack(proto, album.id, changedArtists);
+            album.trackIds.push(track.id);
+
+            // Try each embedded cover (there could be multiple)
+            if (proto.tag.picture && proto.tag.picture.length > 0) {
+                for (const picture of proto.tag.picture) {
+                    const coverIndex = album.addCover(proto.fileId, picture.data);
+					if (coverIndex === null) continue;
+					track.coverIndices.push(coverIndex);
+                }
+            }
+
+            // Search for neighboring cover images, and add them to the album of the track
+            const dirPath = FileSystem.getDirectoryPath(proto.path);
+            const dirFiles = FileSystem.getFilesInDirectory(dirPath);
+            for (const fileId of dirFiles) {
+                const fileInfo = FileSystem.getFileByID(fileId)!;
+                if (!this.isCoverImage(fileInfo.mimeType, FileSystem.getFileName(fileInfo.path))) continue;
+                if (album.hasCover(fileId)) continue;
+
+                // Proceed only if the file is an image and is not already part of the album
+                const coverFile = await fileInfo.handle.getFile();
+                const data = new Uint8Array(await coverFile.arrayBuffer());
+                album.addCover(fileId, data);
+            }
+
+            changedTracks.add(track.id);
+            changedAlbums.add(album.id);
+        }
+
+        for (const albumId of changedAlbums) {
+            const album = Album.byID(albumId)!;
+            album.sortTracks();
+        }
+
+        loading_lbl.textContent = "Synchronizing library to database...";
+        progress_bar.removeAttribute("max");
+        progress_bar.removeAttribute("value");
+
+        // Make sure deletion is done
+        await deleteTransaction.done;
+
+        console.log({ changedTracks, changedAlbums, changedArtists });
+
+        if (changedTracks.size > 0 || changedAlbums.size > 0 || changedArtists.size > 0) {
+            const updateTransaction = db.transaction([Track.STORE_NAME, Album.STORE_NAME, Artist.STORE_NAME], "readwrite");
+    
+            const tracksStore = updateTransaction.objectStore(Track.STORE_NAME);
+            for (const trackId of changedTracks) {
+                const track = Track.byID(trackId)!;
+                track.save(tracksStore);
+            }
+    
+            const albumsStore = updateTransaction.objectStore(Album.STORE_NAME);
+            for (const albumId of changedAlbums) {
+                const album = Album.byID(albumId)!;
+                album.save(albumsStore);
+            }
+    
+            const artistsStore = updateTransaction.objectStore(Artist.STORE_NAME);
+            for (const artistId of changedArtists) {
+                const artist = Artist.byID(artistId)!;
+                artist.save(artistsStore);
+            }
+    
+            // Catch up to everything
+            updateTransaction.commit();
+            await updateTransaction.done;
+        }
+
+        load_dialog.close();
+
+        loading_lbl.textContent = "Linking artists...";
+        progress_bar.removeAttribute("max");
+        progress_bar.removeAttribute("value");
+
+        // affects in-memory only
+        Track.linkToArtists();
+        Album.linkToArtists();
+
+        return changes;
+    }
+
+    static async loadLibrary(db: IDBPDatabase, _forceRescan: boolean) {
         await Promise.all([
-            Track.saveAll(db),
-            Album.saveAll(db),
-            Artist.saveAll(db),
+            Track.loadAll(db),
+            Album.loadAll(db),
+            Artist.loadAll(db),
         ]);
 
         Track.linkToArtists();
         Album.linkToArtists();
 
-        load_dialog.close();
+        let newLibrary = false;
+        let dirHandle = await this.loadRootHandle(db);
+        if (!dirHandle || !await ensureReadPermission(dirHandle)) {
+            this.testSupported();
+            dirHandle = await this.showSelectLibraryDialog();
+            await this.saveRootHandle(db, dirHandle);
+            newLibrary = true;
+        } /* else if (!forceRescan) {
+            return;
+        } */
 
-        this.showLibraryLoadSuccessDialog();
-    }
+        const changes = await this.updateLibrary(db, dirHandle);
 
-    static async rescanLibrary(_db: IDBPDatabase) {
+        if (newLibrary) {
+            this.showLibraryLoadSuccessDialog();
+        }
 
+        if (changes.newFiles.length > 0 || changes.changedFiles.length > 0 || changes.removedFiles.length > 0) {
+            // TODO changes dialog
+        }
     }
 }

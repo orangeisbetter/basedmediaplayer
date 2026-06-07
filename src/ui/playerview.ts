@@ -6,6 +6,7 @@ import { Player } from "../player.ts";
 import { LoopMode, Playlist, PlaylistShuffleEventData, PlaylistTrackChangeEventData } from "../playlist.ts";
 import { convertTime } from "../time.ts";
 import { Track } from "../track.ts";
+import { changeIcon } from "../util/icons.ts";
 import { PlaylistView } from "./playlistview.ts";
 
 export class PlayerView {
@@ -18,7 +19,7 @@ export class PlayerView {
     private static skipPreviousButton: HTMLButtonElement;
     private static skipNextButton: HTMLButtonElement;
     private static playPauseButton: HTMLButtonElement;
-    private static playPauseIcon: HTMLElement;
+    private static playPauseIcon: SVGElement;
 
     private static trackTitleLabel: HTMLElement;
     private static trackTimeLabel: HTMLElement;
@@ -29,7 +30,7 @@ export class PlayerView {
     private static playlistToggleButton: HTMLButtonElement;
     private static lyricsViewButton: HTMLButtonElement;
     private static loopButton: HTMLButtonElement;
-    private static loopIcon: HTMLElement;
+    private static loopIcon: SVGElement;
 
     private static lyricsPanel: HTMLElement;
 
@@ -49,7 +50,7 @@ export class PlayerView {
         this.skipPreviousButton = this.rootElement.querySelector(":scope > .media > .controls > .skip-previous")!;
         this.skipNextButton = this.rootElement.querySelector(":scope > .media > .controls > .skip-next")!;
         this.playPauseButton = this.rootElement.querySelector(":scope > .media > .controls > .play-pause")!;
-        this.playPauseIcon = this.playPauseButton.querySelector("iconify-icon")!;
+        this.playPauseIcon = this.playPauseButton.querySelector("svg")!;
 
         this.trackTitleLabel = this.rootElement.querySelector(":scope > .media > .current-media > .track-title")!;
         this.trackTimeLabel = this.rootElement.querySelector(":scope > .media > .current-media > .track-time")!;
@@ -60,7 +61,7 @@ export class PlayerView {
         this.playlistToggleButton = this.rootElement.querySelector(":scope > .additional-controls > .playlist-toggle")!;
         this.lyricsViewButton = this.rootElement.querySelector(":scope > .additional-controls > .lyrics-view")!;
         this.loopButton = this.rootElement.querySelector(":scope > .additional-controls > .loop")!;
-        this.loopIcon = this.loopButton.querySelector("iconify-icon")!;
+        this.loopIcon = this.loopButton.querySelector("svg")!;
 
         this.lyricsPanel = document.querySelector(".lyrics-panel")!;
 
@@ -109,7 +110,7 @@ export class PlayerView {
                 break;
             case LoopMode.Track:
                 this.loopButton.classList.add("active");
-                this.loopIcon.setAttribute("icon", "mdi:repeat-once");
+                changeIcon(this.loopIcon, "repeat-once");
                 break;
             default:
                 break;
@@ -277,12 +278,12 @@ export class PlayerView {
     }
 
     private static playHandler() {
-        this.playPauseIcon.setAttribute("icon", "mdi:pause");
+        changeIcon(this.playPauseIcon, "pause");
         navigator.mediaSession.playbackState = "playing";
     }
-
+    
     private static pauseHandler() {
-        this.playPauseIcon.setAttribute("icon", "mdi:play");
+        changeIcon(this.playPauseIcon, "play");
         navigator.mediaSession.playbackState = "paused";
     }
 
@@ -294,12 +295,12 @@ export class PlayerView {
                 break;
             case LoopMode.Playlist:
                 Playlist.loopMode = LoopMode.Track;
-                this.loopIcon.setAttribute("icon", "mdi:repeat-once");
+                changeIcon(this.loopIcon, "repeat-once");
                 break;
             case LoopMode.Track:
                 Playlist.loopMode = LoopMode.None;
                 this.loopButton.classList.remove("active");
-                this.loopIcon.setAttribute("icon", "mdi:repeat");
+                changeIcon(this.loopIcon, "repeat");
                 break;
         }
     }
@@ -350,7 +351,7 @@ export class PlayerView {
 
         this.trackId = id;
 
-        this.playPauseIcon.setAttribute("icon", "mdi:play");
+        changeIcon(this.playPauseIcon, "play");
         this.trackProgressBar.style.setProperty('--progress', `0%`);
 
         if (id === null) {
@@ -383,7 +384,7 @@ export class PlayerView {
         const album = Album.byID(track.albumId)!;
         this.albumNameLabel.textContent = album.name ?? "Unknown Album";
         this.albumArtistLabel.textContent = album.getArtistName() ?? "Unknown Artist";
-        this.albumCoverImage.src = album.getCoverURL(track.coverIndex);
+        this.albumCoverImage.src = album.getCoverURL(track.coverIndices[0]);
         this.albumCoverImage.style.display = "";
 
         if (track.lyrics && track.lyrics?.length > 0) {
@@ -396,11 +397,17 @@ export class PlayerView {
 
         this.updateTitle();
 
+		let coverIndices = track.coverIndices;
+		if (coverIndices.length == 0 && album.covers.length > 0) {
+			coverIndices = Array.from({ length: album.covers.length }, (_, i) => i);
+		}
+		const covers: MediaImage[] = coverIndices.map(coverIndex => ({ src: album.getCoverURL(coverIndex) }));
+
         navigator.mediaSession.metadata = new MediaMetadata({
             title: track.title,
             artist: Artist.getArtistString(track.artists),
             album: album.name,
-            artwork: [{ src: album.getCoverURL(track.coverIndex) }]
+			artwork: covers
         });
     }
 

@@ -1,6 +1,7 @@
 import { IDBPDatabase } from "idb";
 import { Emitter } from "./emitter.ts";
 import { Track } from "./track.ts";
+import { FileSystem } from "./filesystem.ts";
 
 export class Player {
     private static db: IDBPDatabase;
@@ -61,7 +62,7 @@ export class Player {
         Player.playing = false;
         URL.revokeObjectURL(Player.url);
         Player.currentTrack = track;
-        Player.loadPromise = Player.loadTrackAudio(Player.currentTrack.handle);
+        Player.loadPromise = Player.loadTrackAudio(FileSystem.getFileByID(Player.currentTrack.fileId)!.handle);
     }
 
     private static async loadTrackAudio(fileHandle: FileSystemFileHandle): Promise<void> {

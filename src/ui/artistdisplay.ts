@@ -134,8 +134,8 @@ export class ArtistDisplay {
 
         const collectionAlbums = MusicBrowser.collection?.getAlbumIds();
         const albumIdsUnsorted = collectionAlbums
-            ? artist.albumIds.filter(albumId => collectionAlbums.has(albumId))
-            : artist.albumIds;
+            ? Array.from(artist.albumIds).filter(albumId => collectionAlbums.has(albumId))
+            : Array.from(artist.albumIds);
         const albums = albumIdsUnsorted.map(albumId => Album.byID(albumId)!);
         albums.sort(compareStack<Album>([
             new CompareEntry(album => album.name, compareUndefinedLast(compareSmartAlpha)),
@@ -155,8 +155,8 @@ export class ArtistDisplay {
 
         const collectionTracks = MusicBrowser.collection?.getTrackIds();
         const trackIdsUnsorted = collectionTracks
-            ? artist.trackIds.filter(trackId => collectionTracks.has(trackId))
-            : artist.trackIds;
+            ? Array.from(artist.trackIds).filter(trackId => collectionTracks.has(trackId))
+            : Array.from(artist.trackIds);
         const tracks = trackIdsUnsorted.map(trackId => Track.byID(trackId)!);
         tracks.sort(compareStack([
             new CompareEntry(track => Album.byID(track.albumId)!.getArtistName(), compareUndefinedLast(compareSmartAlpha)),

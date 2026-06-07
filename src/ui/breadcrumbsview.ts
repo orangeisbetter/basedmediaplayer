@@ -26,7 +26,7 @@ export class BreadcrumbsView {
         this.root.appendChild(this.delimiter.cloneNode(true));
 
         const rootItem = document.createElement("a");
-        rootItem.textContent = "Local library";
+        rootItem.title = rootItem.textContent = "Local library";
         rootItem.addEventListener("click", () => MusicBrowser.navigate({}));
         this.root.appendChild(rootItem);
 
@@ -62,7 +62,7 @@ export class BreadcrumbsView {
                 this.collection.appendChild(this.delimiter.cloneNode(true));
 
                 const node = document.createElement("a");
-                node.textContent = collection.name;
+				node.title = node.textContent = collection.name;
                 node.addEventListener("click", () => MusicBrowser.navigate({
                     collection: collection
                 }));
@@ -80,7 +80,7 @@ export class BreadcrumbsView {
             const album = Album.byID(state.albumId)!;
 
             const albumNode = document.createElement("a");
-            albumNode.textContent = album?.name ?? "Unknown Album";
+			albumNode.title = albumNode.textContent = album?.name ?? "Unknown Album";
             albumNode.addEventListener("click", () => MusicBrowser.navigate({
                 collection: state.collection,
                 albumId: state.albumId
@@ -95,10 +95,10 @@ export class BreadcrumbsView {
             const artistNode = document.createElement("a");
 
             if (album.artist === undefined) {
-                artistNode.textContent = "Unknown artist";
+				artistNode.title = artistNode.textContent = "Unknown artist";
             } else {
                 const artist = Artist.byID(album.artist)!;
-                artistNode.textContent = artist.name ?? "Unknown Artist";
+				artistNode.title = artistNode.textContent = artist.name;
                 artistNode.addEventListener("click", () => MusicBrowser.navigate({
                     collection: state.collection,
                     artistId: album.artist
@@ -116,7 +116,7 @@ export class BreadcrumbsView {
             const artist = Artist.byID(state.artistId);
 
             const node = document.createElement("a");
-            node.textContent = artist?.name ?? "Unknown Artist";
+			node.title = node.textContent = artist?.name ?? "Unknown Artist";
             node.addEventListener("click", () => MusicBrowser.navigate({
                 collection: state.collection,
                 artistId: state.artistId

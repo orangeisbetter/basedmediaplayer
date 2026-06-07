@@ -325,8 +325,8 @@ export class MusicBrowserView {
 
         const cells = clone.querySelectorAll("td");
         cells[0].title = cells[0].textContent = artist.name;
-        cells[1].textContent = String(artist.albumIds.length);
-        cells[2].textContent = String(artist.trackIds.length);
+        cells[1].textContent = String(artist.albumIds.size);
+        cells[2].textContent = String(artist.trackIds.size);
 
         clone.firstElementChild!.addEventListener("click", () => MusicBrowser.navigate({
             collection: MusicBrowser.collection,

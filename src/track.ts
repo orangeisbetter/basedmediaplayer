@@ -1,11 +1,12 @@
-import { IDBPDatabase } from "idb";
+import { IDBPDatabase, IDBPTransaction, IDBPObjectStore } from "idb";
 import { ICommonTagsResult, IFormat, parseBlob } from "music-metadata";
 import { Artist } from "./artist.ts";
+import { Album } from "./album.ts";
+import { Collection } from "./collection.ts";
 
 export interface ProtoTrack {
     path: string;
-    handle: FileSystemFileHandle;
-    dir: FileSystemDirectoryHandle;
+    fileId: number;
     tag: ICommonTagsResult;
     format: IFormat;
 };
@@ -14,7 +15,7 @@ export interface TrackStore {
     id: number;
     albumId: number;
     path: string;
-    handle: FileSystemFileHandle;
+    fileId: number;
 
     // metadata
     duration: number;
@@ -25,18 +26,21 @@ export interface TrackStore {
     featArtists?: string;
     lyrics?: (string | undefined)[];
     date?: string;
+	year?: number;
     genre?: string[];
     composer?: string[];
-    coverIndex?: number;
+    coverIndices: number[];
 
     userChanged: boolean;
 }
 
 export class Track implements TrackStore {
+    public static readonly STORE_NAME = "tracks" as const;
+    
     id: number;
     albumId: number;
     path: string;
-    handle: FileSystemFileHandle;
+    fileId: number;
 
     // metadata
     duration: number;
@@ -47,20 +51,22 @@ export class Track implements TrackStore {
     featArtists?: string;
     lyrics?: (string | undefined)[];
     date?: string;
+	year?: number;
     genre?: string[];
     composer?: string[];
-    coverIndex?: number;
+    coverIndices: number[];
 
     userChanged: boolean;
 
     static highestID: number = 0;
-    static tracks: Map<number, Track> = new Map();
+    static tracks = new Map<number, Track>();
+    static fileIdToTrackId = new Map<number, number>();
 
     constructor(store: TrackStore) {
         this.id = store.id;
         this.path = store.path;
         this.albumId = store.albumId;
-        this.handle = store.handle;
+        this.fileId = store.fileId;
 
         this.duration = store.duration;
         this.disc = store.disc;
@@ -70,13 +76,15 @@ export class Track implements TrackStore {
         this.featArtists = store.featArtists;
         this.lyrics = store.lyrics;
         this.date = store.date;
+		this.year = store.year;
         this.genre = store.genre;
         this.composer = store.composer;
-        this.coverIndex = store.coverIndex;
+        this.coverIndices = store.coverIndices;
 
         this.userChanged = store.userChanged;
 
         Track.tracks.set(this.id, this);
+        Track.fileIdToTrackId.set(this.fileId, this.id);
     }
 
     static createFromStore({ id, ...store }: TrackStore): Track {
@@ -87,7 +95,7 @@ export class Track implements TrackStore {
         return track;
     }
 
-    static createFromProtoTrack(proto: ProtoTrack, albumId: number): Track {
+    static createFromProtoTrack(proto: ProtoTrack, albumId: number, changedArtists: Set<number>): Track {
         // Handle featuring artists
         const artists: number[] = [];
         let featArtists: string | undefined = undefined;
@@ -97,7 +105,7 @@ export class Track implements TrackStore {
                 if (feat) {
                     featArtists = feat;
                 }
-                artists.push(Artist.getOrCreate(base));
+                artists.push(Artist.getOrCreate(base, changedArtists));
             }
         }
 
@@ -105,7 +113,7 @@ export class Track implements TrackStore {
             id: Track.highestID++,
             path: proto.path,
             albumId: albumId,
-            handle: proto.handle,
+            fileId: proto.fileId,
 
             duration: proto.format.duration!,
             disc: proto.tag.disk.no,
@@ -115,9 +123,10 @@ export class Track implements TrackStore {
             featArtists: featArtists,
             lyrics: proto.tag.lyrics?.map(lyrics => lyrics.text),
             date: proto.tag.date,
+			year: proto.tag.year,
             genre: proto.tag.genre,
             composer: proto.tag.composer,
-            coverIndex: undefined,
+            coverIndices: [],
 
             userChanged: false,
         });
@@ -125,16 +134,17 @@ export class Track implements TrackStore {
     }
 
     static async saveAll(db: IDBPDatabase) {
-        const transaction = db.transaction("tracks", "readwrite");
-        const objectStore = transaction.objectStore("tracks");
+        const transaction = db.transaction(Track.STORE_NAME, "readwrite");
+        const objectStore = transaction.objectStore(Track.STORE_NAME);
         for (const track of Track.tracks.values()) {
-            await objectStore.put(track.getStore());
+            objectStore.put(track.getStore());
         }
         transaction.commit();
+        await transaction.done;
     }
 
     static async loadAll(db: IDBPDatabase) {
-        const tracks: TrackStore[] = await db.getAll("tracks");
+        const tracks: TrackStore[] = await db.getAll(Track.STORE_NAME);
         for (const track of tracks) {
             Track.createFromStore(track);
             if (track.id >= Track.highestID) {
@@ -148,7 +158,7 @@ export class Track implements TrackStore {
             const artistIds = track.artists;
             for (const artistId of artistIds) {
                 const artist = Artist.byID(artistId)!;
-                artist.trackIds.push(id);
+                artist.trackIds.add(id);
             }
         }
     }
@@ -161,36 +171,13 @@ export class Track implements TrackStore {
         return Track.tracks.keys();
     }
 
-    getStore(): TrackStore {
-        return {
-            id: this.id,
-            path: this.path,
-            albumId: this.albumId,
-            handle: this.handle,
-
-            duration: this.duration,
-            disc: this.disc,
-            no: this.no,
-            title: this.title,
-            artists: this.artists,
-            featArtists: this.featArtists,
-            lyrics: this.lyrics,
-            date: this.date,
-            genre: this.genre,
-            composer: this.composer,
-            coverIndex: this.coverIndex,
-
-            userChanged: this.userChanged
-        };
-    }
-
     private static removeFilenameExtension(filename: string) {
         const lastDotIndex = filename.lastIndexOf(".");
         if (lastDotIndex === -1 || lastDotIndex === 0) return filename;
         return filename.substring(0, lastDotIndex);
     }
 
-    static async getTrackMetadata(file: File, handle: FileSystemFileHandle, dir: FileSystemDirectoryHandle, path: string): Promise<ProtoTrack | null> {
+    static async getTrackMetadata(file: File, fileId: number, path: string): Promise<ProtoTrack | null> {
         try {
             const { common, format } = await parseBlob(file);
 
@@ -211,13 +198,66 @@ export class Track implements TrackStore {
                 }
             }
 
-            return { handle, dir, tag: common, format, path };
+            return { fileId, tag: common, format, path };
         } catch {
             return null;
         }
     }
 
-    // async updateMetadata(objectStore: IDBPObjectStore<unknown, ["tracks"], "tracks", "readwrite">): Promise<boolean> {
+    getStore(): TrackStore {
+        return {
+            id: this.id,
+            path: this.path,
+            albumId: this.albumId,
+            fileId: this.fileId,
+
+            duration: this.duration,
+            disc: this.disc,
+            no: this.no,
+            title: this.title,
+            artists: this.artists,
+            featArtists: this.featArtists,
+            lyrics: this.lyrics,
+            date: this.date,
+			year: this.year,
+            genre: this.genre,
+            composer: this.composer,
+            coverIndices: this.coverIndices,
+
+            userChanged: this.userChanged
+        };
+    }
+
+    save(objectStore: IDBPObjectStore<unknown, string[], typeof Track.STORE_NAME, "readwrite">) {
+        objectStore.put(this.getStore());
+    }
+
+    delete(tx: IDBPTransaction<unknown, string[], "readwrite">) {
+		// Remove track from album
+        const album = Album.byID(this.albumId)!;
+        album.removeTrack(this.id, tx);
+
+		// Remove track from artists
+        for (const artistId of this.artists) {
+            const artist = Artist.byID(artistId)!;
+            artist.removeTrack(this.id, tx);
+        }
+
+        // Remove track from collections
+		const residingCollections = Collection.getResidingCollections([this.id]);
+		for (const collection of residingCollections) {
+			collection.remove([this.id]);
+		}
+
+		// Remove track from registry and caches
+        Track.tracks.delete(this.id);
+        Track.fileIdToTrackId.delete(this.fileId);
+
+		// Delete the track from db
+        tx.objectStore(Track.STORE_NAME).delete(this.id);
+    }
+
+    // async updateMetadata(objectStore: IDBPObjectStore<unknown, [Track.STORE_NAME], Track.STORE_NAME, "readwrite">): Promise<boolean> {
     //     // If the user made changes to the metadata explicitly, ignore new file changes. The user is always right.
     //     if (this.userChanged) return false;
 

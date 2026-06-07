@@ -9,11 +9,31 @@
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
     <link rel="shortcut icon" href="bmp.png" type="image/png">
-    <script src="https://code.iconify.design/iconify-icon/3.0.0/iconify-icon.min.js"></script>
+    <link rel="preload" href="release_notes.json" as="fetch" crossorigin>
+    <link rel="preload" href="missing.png" as="image">
     <script src="dist/main.js"></script>
 </head>
 
 <body>
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" style="display: none;">
+        <symbol viewBox="0 0 24 24" id="icon-chevron-left"><path fill="currentColor" d="M15.41 16.58L10.83 12l4.58-4.59L14 6l-6 6l6 6z" /></symbol>
+        <symbol viewBox="0 0 24 24" id="icon-chevron-right"><path fill="currentColor" d="M8.59 16.58L13.17 12L8.59 7.41L10 6l6 6l-6 6z" /></symbol>
+        <symbol viewBox="0 0 24 24" id="icon-skip-previous"><path fill="currentColor" d="M6 18V6h2v12zm3.5-6L18 6v12z" /></symbol>
+        <symbol viewBox="0 0 24 24" id="icon-play"><path fill="currentColor" d="M8 5.14v14l11-7z" /></symbol>
+        <symbol viewBox="0 0 24 24" id="icon-pause"><path fill="currentColor" d="M14 19h4V5h-4M6 19h4V5H6z" /></symbol>
+        <symbol viewBox="0 0 24 24" id="icon-skip-next"><path fill="currentColor" d="M16 18h2V6h-2M6 18l8.5-6L6 6z" /></symbol>
+        <symbol viewBox="0 0 24 24" id="icon-playlist-music"><path fill="currentColor" d="M15 6H3v2h12zm0 4H3v2h12zM3 16h8v-2H3zM17 6v8.18c-.31-.11-.65-.18-1-.18a3 3 0 0 0-3 3a3 3 0 0 0 3 3a3 3 0 0 0 3-3V8h3V6z" /></symbol>
+        <symbol viewBox="0 0 24 24" id="icon-text"><path fill="currentColor" d="M21 6v2H3V6zM3 18h9v-2H3zm0-5h18v-2H3z" /></symbol>
+        <symbol viewBox="0 0 24 24" id="icon-volume"><path d="M3 9h4l5-5v16l-5-5H3V9zm18 3a9.003 9.003 0 0 1-7 8.777V18.71a7.003 7.003 0 0 0 0-13.42V3.223c4.008.91 7 4.494 7 8.777zm-4 0a5.001 5.001 0 0 1-3 4.584V7.416c1.766.772 3 2.534 3 4.584z" fill="currentColor" /></symbol>
+        <symbol viewBox="0 0 24 24" id="icon-shuffle"><path fill="currentColor" d="m14.83 13.41l-1.41 1.41l3.13 3.13L14.5 20H20v-5.5l-2.04 2.04zM14.5 4l2.04 2.04L4 18.59L5.41 20L17.96 7.46L20 9.5V4m-9.41 5.17L5.41 4L4 5.41l5.17 5.17z" /></symbol>
+        <symbol viewBox="0 0 24 24" id="icon-repeat"><path fill="currentColor" d="M17 17H7v-3l-4 4l4 4v-3h12v-6h-2M7 7h10v3l4-4l-4-4v3H5v6h2z" /></symbol>
+        <symbol viewBox="0 0 24 24" id="icon-repeat-off"><path fill="currentColor" d="M2 5.27L3.28 4L20 20.72L18.73 22l-3-3H7v3l-4-4l4-4v3h6.73L7 10.27V11H5V8.27zM17 13h2v4.18l-2-2zm0-8V2l4 4l-4 4V7H8.82l-2-2z" /></symbol>
+        <symbol viewBox="0 0 24 24" id="icon-repeat-once"><path fill="currentColor" d="M13 15V9h-1l-2 1v1h1.5v4m5.5 2H7v-3l-4 4l4 4v-3h12v-6h-2M7 7h10v3l4-4l-4-4v3H5v6h2z" /></symbol>
+        <symbol viewBox="0 0 24 24" id="icon-music-note"><path fill="currentColor" d="M12 3v10.55c-.59-.34-1.27-.55-2-.55c-2.21 0-4 1.79-4 4s1.79 4 4 4s4-1.79 4-4V7h4V3z" /></symbol>
+        <symbol viewBox="0 0 24 24" id="icon-music-box-multiple"><path fill="currentColor" d="M4 6H2v14a2 2 0 0 0 2 2h14v-2H4M18 7h-3v5.5a2.5 2.5 0 0 1-2.5 2.5a2.5 2.5 0 0 1-2.5-2.5a2.5 2.5 0 0 1 2.5-2.5c.57 0 1.08.19 1.5.5V5h4m2-3H8a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2" /></symbol>
+        <symbol viewBox="0 0 24 24" id="icon-library-music"><path fill="currentColor" d="M4 6H2v14a2 2 0 0 0 2 2h14v-2H4M18 7h-3v5.5a2.5 2.5 0 0 1-2.5 2.5a2.5 2.5 0 0 1-2.5-2.5a2.5 2.5 0 0 1 2.5-2.5c.57 0 1.08.19 1.5.5V5h4m2-3H8a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2" /></symbol>
+        <symbol viewBox="0 0 24 24" id="icon-album"><path fill="currentColor" d="M12 11a1 1 0 0 0-1 1a1 1 0 0 0 1 1a1 1 0 0 0 1-1a1 1 0 0 0-1-1m0 5.5c-2.5 0-4.5-2-4.5-4.5s2-4.5 4.5-4.5s4.5 2 4.5 4.5s-2 4.5-4.5 4.5M12 2A10 10 0 0 0 2 12a10 10 0 0 0 10 10a10 10 0 0 0 10-10A10 10 0 0 0 12 2" /></symbol>
+    </svg>
     <template id="template_album">
         <div class="album">
             <div class="cover-box">
@@ -27,7 +47,7 @@
         <li>
             <span class="caret"></span>
             <div class="row">
-                <span class="icon"><iconify-icon width="16px" height="16px"></iconify-icon></span>
+                <svg class="icon" width="16" height="16"><use/></svg></span>
                 <span class="label"></span>
             </div>
             <ul></ul>
@@ -284,7 +304,14 @@
         <div class="album-view" id="track_list" style="display: none;">
             <div class="column">
                 <div class="album-header">
-                    <img class="album-cover" id="album-cover">
+                    <div class="album-cover">
+                        <div class="cover-box">
+                            <img id="album-cover-img">
+                        </div>
+                        <button class="square" id="cover-left-btn"><svg class="icon" width="24" height="24"><use href="#icon-chevron-left"/></svg></button>
+                        <button class="square" id="cover-right-btn"><svg class="icon" width="24" height="24"><use href="#icon-chevron-right"/></svg></button>
+                        <span id="cover-index-lbl">1 / 1</span>
+                    </div>
                     <div class="album-name" id="album-name"></div>
                     <div class="album-artist">
                         <a id="album-artist"></a>
@@ -378,13 +405,13 @@
         <div class="media">
             <div class="controls">
                 <button id="skip_previous_btn" class="square skip-previous" title="Skip to previous track" disabled>
-                    <iconify-icon icon="mdi:skip-previous" width="24" height="24"></iconify-icon>
+                    <svg class="icon" width="24" height="24"><use href="#icon-skip-previous"/></svg>
                 </button>
                 <button id="play_pause_btn" class="square play-pause" title="Toggle playback of the player" disabled>
-                    <iconify-icon id="play_icon" icon="mdi:play" width="24" height="24"></iconify-icon>
+                    <svg class="icon" width="24" height="24"><use href="#icon-play"/></svg>
                 </button>
                 <button id="skip_next_btn" class="square skip-next" title="Skip to next track" disabled>
-                    <iconify-icon icon="mdi:skip-next" width="24" height="24"></iconify-icon>
+                    <svg class="icon" width="24" height="24"><use href="#icon-skip-next"/></svg>
                 </button>
             </div>
             <div class="current-media">
@@ -399,29 +426,29 @@
         </div>
         <div class="additional-controls">
             <button class="square playlist-toggle" id="playlist_btn" title="Toggle playlist">
-                <iconify-icon icon="mdi:playlist-music" width="24" height="24"></iconify-icon>
+                <svg class="icon" width="24" height="24"><use href="#icon-playlist-music"/></svg>
             </button>
             <button class="square lyrics-view" title="View song lyrics" disabled>
-                <iconify-icon icon="mdi:text" width="24" height="24"></iconify-icon>
+                <svg class="icon" width="24" height="24"><use href="#icon-text"/></svg>
             </button>
             <div class="separator"></div>
             <button class="square volume-control" style="cursor: ns-resize;" id="volume_ctrl"
-                title="Click and drag or scroll to adjust volume">
-                <iconify-icon icon="mdi:volume" width="24" height="24"></iconify-icon>
-                <div class="volume-label" id="volume_display" style="display: none">0 dB</div>
-            </button>
-            <!-- <button class="square shuffle" title="Shuffle" disabled>
-                <iconify-icon icon="mdi:shuffle" width="24" height="24"></iconify-icon>
-            </button> -->
-            <button class="square loop" title="Repeat">
-                <iconify-icon icon="mdi:repeat" width="24" height="24"></iconify-icon>
-            </button>
-        </div>
+            title="Click and drag or scroll to adjust volume">
+            <svg class="icon" width="24" height="24"><use href="#icon-volume"/></svg>
+            <div class="volume-label" id="volume_display" style="display: none">0 dB</div>
+        </button>
+        <!-- <button class="square shuffle" title="Shuffle" disabled>
+            <svg class="icon" width="24" height="24"><use href="#icon-shuffle"/></svg>
+        </button> -->
+        <button class="square loop" title="Repeat">
+            <svg class="icon" width="24" height="24"><use href="#icon-repeat"/></svg>
+        </button>
     </div>
-    <span class="dragging-playlist">
-        <iconify-icon icon="mdi:music-note" width="96" height="96"></iconify-icon>
-        <div class="label"></div>
-    </span>
+</div>
+<span class="dragging-playlist">
+    <svg class="icon" width="96" height="96"><use href="#icon-music-note"/></svg>
+    <div class="label"></div>
+</span>
 </body>
 
 </html>

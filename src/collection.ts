@@ -12,6 +12,8 @@ type CollectionRootObserver = (collections: Collection[]) => void;
 type CollectionObserver = (collection: Collection) => void;
 
 export class Collection {
+    public static readonly STORE_NAME = "collections" as const;
+    
     readonly id: number;
     name: string;
     private trackIds: Set<number>;
@@ -44,6 +46,7 @@ export class Collection {
     static rootCollections: number[] = [];
     static recentlyAdded: Collection | null = null;
 
+	// Similar to baseObservers but for the root-level collections
     private static rootObservers: CollectionRootObserver[] = [];
 
     constructor(options: { id?: number, name: string, trackIds: number[], parentId: number }) {
@@ -69,8 +72,8 @@ export class Collection {
     }
 
     static async saveAll() {
-        const transaction = this.db.transaction("collections", "readwrite");
-        const objectStore = transaction.objectStore("collections");
+        const transaction = this.db.transaction(Collection.STORE_NAME, "readwrite");
+        const objectStore = transaction.objectStore(Collection.STORE_NAME);
         for (const collection of Collection.collections.values()) {
             await objectStore.put(collection.getStore());
         }
@@ -78,7 +81,7 @@ export class Collection {
     }
 
     static async loadAll() {
-        const collections: CollectionStore[] = await this.db.getAll("collections");
+        const collections: CollectionStore[] = await this.db.getAll(Collection.STORE_NAME);
 
         // First pass: create objects (except for root, which is created statically)
         for (const collectionStore of collections) {
@@ -118,17 +121,16 @@ export class Collection {
         return newCollection;
     }
 
-    private static getResidingCollectionsRecursive(collection: Collection, out: Set<Collection>, trackIds: number[]) {
-        const collectionTracks = collection.getTrackIds();
-        trackIds = trackIds.filter(trackId => collectionTracks.has(trackId));
-        for (const trackId of trackIds) {
-            if (collection.trackIds.has(trackId)) {
-                out.add(collection);
-            }
-        }
-        for (const child of collection.getChildren()) {
-            this.getResidingCollectionsRecursive(child, out, trackIds);
-        }
+	private static getResidingCollectionsRecursive(collection: Collection, out: Set<Collection>, trackIds: number[]) {
+		const subtreeTracks = collection.getTrackIds();
+		const matching = trackIds.filter(id => subtreeTracks.has(id));
+		if (matching.length === 0) return; // prune entire subtree
+		if (matching.some(id => collection.trackIds.has(id))) {
+			out.add(collection);
+		}
+		for (const child of collection.getChildren()) {
+			this.getResidingCollectionsRecursive(child, out, matching);
+		}
     }
 
     static getResidingCollections(trackIds: number[]): Set<Collection> {
@@ -152,7 +154,29 @@ export class Collection {
         this.tracksCache = undefined;
         this.trackObservers.forEach(observer => observer(this));
         this.getParent()?.tracksChanged();
+
+		if (this.getParent() === null) {
+			this.removeEmptyChildren();
+		}
     }
+
+	private removeEmptyChildren() {
+		// Use BFS to find children
+		const queue: Collection[] = [this];
+		for (const collection of queue) {
+			for (const child of collection.getChildren()) {
+				queue.push(child);
+			}
+		}
+
+		// Iterate backwards, removing empty children bottom-up
+		for (let i = queue.length - 1; i >= 0; i--) {
+			const collection = queue[i];
+			if (collection.getTrackIds().size === 0) {
+				collection.deleteSelf();
+			}
+		}
+	}
 
     add(trackIds: number[]) {
         Collection.recentlyAdded = this;
@@ -160,7 +184,7 @@ export class Collection {
         for (const trackId of trackIds) {
             this.trackIds.add(trackId);
         }
-        Collection.db.put("collections", this.getStore());
+        Collection.db.put(Collection.STORE_NAME, this.getStore());
         this.tracksChanged();
     }
 
@@ -171,7 +195,7 @@ export class Collection {
             if (this.trackIds.delete(trackId)) count++;
         }
         if (count > 0) {
-            Collection.db.put("collections", this.getStore());
+            Collection.db.put(Collection.STORE_NAME, this.getStore());
             this.tracksChanged();
         }
         return count;
@@ -214,20 +238,24 @@ export class Collection {
         }
         Collection.collections.delete(this.id);
         if (this.parentId === -1) {
-            Collection.rootCollections.filter(id => id !== this.id);
+			Collection.rootCollections = Collection.rootCollections.filter(id => id !== this.id);
             const array = Collection.rootCollections.map(id => Collection.byID(id)!);
-            Collection.rootObservers.forEach(observer => observer(array.slice()));
+			Collection.rootObservers.forEach(observer => observer(array));
         } else {
             const parent = Collection.byID(this.parentId)!;
-            parent.children.filter(id => id !== this.id);
+			parent.children = parent.children.filter(id => id !== this.id);
             parent.baseObservers.forEach(observer => observer(parent));
         }
+		if (Collection.recentlyAdded === this) {
+			Collection.recentlyAdded = null;
+		}
+		Collection.db.delete(Collection.STORE_NAME, this.id);
     }
 
     private gather(out: Set<number>) {
         for (const id of this.trackIds) out.add(id);
-        for (const id of this.children) {
-            Collection.collections.get(id)!.gather(out);
+		for (const child of this.getChildren()) {
+			child.gather(out);
         }
     }
 

@@ -17,7 +17,7 @@ class CollectionNode {
         CollectionNode.sortChildren(this.children);
         this.treeViewNode = new TreeViewChildNode({
             labelText: this.collection.name,
-            iconName: "mdi:music-box-multiple",
+            iconName: "music-box-multiple",
             children: this.children.map(child => child.treeViewNode),
             onClick: () => this.click(),
         });
@@ -85,7 +85,7 @@ export class LibraryTreeView {
         CollectionNode.sortChildren(this.collectionNodes);
         this.collectionTreeNode = new TreeViewChildNode({
             labelText: "Collections",
-            iconName: "mdi:music-box-multiple",
+            iconName: "music-box-multiple",
             children: this.collectionNodes.map(node => node.treeViewNode),
             expanded: true
         });
@@ -129,12 +129,12 @@ export class LibraryTreeView {
         this.treeView = new TreeView(element, [
             new TreeViewChildNode({
                 labelText: "Local library",
-                iconName: "mdi:library-music",
+                iconName: "library-music",
                 onClick: () => this.localLibraryClick(),
                 // children: [
                 //     new TreeViewChildNode({
                 //         labelText: "All music",
-                //         iconName: "mdi:album",
+                //         iconName: "album",
                 //         onClick: () => this.albumsClick()
                 //     }),
                 // ]
@@ -142,11 +142,11 @@ export class LibraryTreeView {
             this.collectionTreeNode,
             // new TreeViewChildNode({
             //     labelText: "Playlists",
-            //     iconName: "mdi:playlist-music",
+            //     iconName: "playlist-music",
             //     children: [
             //         new TreeViewChildNode({
             //             labelText: "Study beats",
-            //             iconName: "mdi:playlist-music",
+            //             iconName: "playlist-music",
             //         })
             //     ]
             // }),

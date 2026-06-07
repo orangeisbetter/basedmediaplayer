@@ -141,5 +141,23 @@
         "bug_fixes": [
             "Updated the media controls so they are disabled while the cassette recorder is playing"
         ]
+	},
+	{
+		"version": "0.5.0",
+		"features": [
+			"Updated the music library scanning logic so that it re-scans the library and updates upon every page load",
+			"Added release year to album display if the tracks in the album have a year set",
+			"Added the ability to view all covers for an album with an image carousel"
+		],
+		"changes": [
+			"Changed collection logic so empty collections are automatically removed"
+		],
+		"bug_fixes": [
+			"Modified the music library to support re-scanning and updating without destroying and recreating everything",
+			"Switched from Iconify icon web components to a single svg with symbols to remove layout jitter and icon load delay",
+			"Fixed cover image stretching in player album cover mini view",
+			"Utilized preload link tags to preload all required assets as quickly as possible",
+			"Changed the linking between tracks and album covers so a track can contribute multiple covers"
+		]
     }
 ]

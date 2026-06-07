@@ -21,7 +21,7 @@ function versionCompare(a: ReleaseNotes, b: ReleaseNotes) {
     return 0;
 }
 
-const releaseNotesPromise = fetch("./release_notes.json")
+const releaseNotesPromise = fetch("release_notes.json")
     .then(response => response.json() as Promise<ReleaseNotes[]>)
     .then(notes => notes.sort((a, b) => versionCompare(b, a)));
 
