@@ -159,5 +159,19 @@
 			"Utilized preload link tags to preload all required assets as quickly as possible",
 			"Changed the linking between tracks and album covers so a track can contribute multiple covers"
 		]
-    }
+	},
+	{
+		"version": "0.5.1",
+		"features": [
+			"Added custom themes and presets, including the highly awaited dark mode",
+			"Added selection and functionality similar to the album view tracks list to the music browser track view"
+		],
+		"changes": [
+			"Changed the lyrics panel so that it can be opened at any time",
+			"Gave each lyric line a hanging indent on horizontal overflow to make it more easily distinguishable from a new line"
+		],
+		"bug_fixes": [
+			"Restyled progress bars with custom elements and styling to support theming"
+		]
+	}
 ]

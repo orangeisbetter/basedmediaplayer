@@ -33,6 +33,8 @@ export class PlayerView {
     private static loopIcon: SVGElement;
 
     private static lyricsPanel: HTMLElement;
+	private static lyricsText: HTMLElement;
+	private static noLyricsLabel: HTMLElement;
 
     private static trackId: number | null = null;
 
@@ -54,7 +56,7 @@ export class PlayerView {
 
         this.trackTitleLabel = this.rootElement.querySelector(":scope > .media > .current-media > .track-title")!;
         this.trackTimeLabel = this.rootElement.querySelector(":scope > .media > .current-media > .track-time")!;
-        this.trackProgressBar = this.rootElement.querySelector(":scope > .media > .current-media > .progress-bar")!;
+        this.trackProgressBar = this.rootElement.querySelector(":scope > .media > .current-media > .playbar")!;
 
         this.volumeControlButton = this.rootElement.querySelector(":scope > .additional-controls > .volume-control")!;
         this.volumeLabel = this.volumeControlButton.querySelector(":scope > .volume-label")!;
@@ -64,6 +66,8 @@ export class PlayerView {
         this.loopIcon = this.loopButton.querySelector("svg")!;
 
         this.lyricsPanel = document.querySelector(".lyrics-panel")!;
+		this.lyricsText = this.lyricsPanel.querySelector("#lyrics-text")!;
+		this.noLyricsLabel = this.lyricsPanel.querySelector("#no-lyrics")!;
 
         this.playPauseButton.addEventListener("click", this.playPauseButtonHandler);
         this.skipPreviousButton.addEventListener("click", () => PlaybackController.skipPreviousAndPlay());
@@ -95,7 +99,6 @@ export class PlayerView {
         this.playlistToggleButton.addEventListener("click", PlaylistView.toggleVisibility);
         this.lyricsViewButton.addEventListener("click", () => {
             if (this.lyricsPanel.style.display === "none") {
-                this.lyricsPanel.textContent = Player.getCurrentTrack()?.lyrics?.[0] ?? "";
                 this.lyricsPanel.style.display = "";
             } else {
                 this.lyricsPanel.style.display = "none";
@@ -366,7 +369,9 @@ export class PlayerView {
             this.albumCoverImage.src = "";
             this.albumCoverImage.style.display = "none";
 
-            this.lyricsViewButton.disabled = true;
+			// Clear lyrics
+			this.lyricsText.innerHTML = "";
+			this.noLyricsLabel.style.display = "";
 
             document.title = `Nothing is playing`;
             return;
@@ -388,11 +393,17 @@ export class PlayerView {
         this.albumCoverImage.style.display = "";
 
         if (track.lyrics && track.lyrics?.length > 0) {
-            this.lyricsPanel.textContent = track.lyrics[0]!;
-            this.lyricsViewButton.disabled = false;
+			this.lyricsText.innerHTML = "";
+			track.lyrics[0]!.split("\n").forEach(line => {
+				const element = document.createElement("span");
+				element.className = "line";
+				element.textContent = `${line}\n`;
+				this.lyricsText.appendChild(element);
+			})
+			this.noLyricsLabel.style.display = "none";
         } else {
-            this.lyricsPanel.style.display = "none";
-            this.lyricsViewButton.disabled = true;
+			this.lyricsText.innerHTML = "";
+			this.noLyricsLabel.style.display = "";
         }
 
         this.updateTitle();

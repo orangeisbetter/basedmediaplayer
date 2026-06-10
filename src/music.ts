@@ -21,6 +21,7 @@ import { CassetteRecorderView } from "./ui/cassetterecorderview.ts";
 import { Album } from "./album.ts";
 import { Track } from "./track.ts";
 import { Artist } from "./artist.ts";
+import { StylesEditor } from "./ui/styleseditor.ts";
 
 declare const track_list: HTMLDivElement;
 declare const search_bar: HTMLInputElement;
@@ -121,6 +122,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     MenuSystem.init();
     MenuBar.init(document.querySelector("#menubar")!);
     CassetteRecorderView.init();
+	StylesEditor.init();
     MusicBrowser.init();
 
     PlaybackController.init();

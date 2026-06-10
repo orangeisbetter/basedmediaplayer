@@ -1,0 +1,14 @@
+[
+	{
+		"title": "Base",
+		"file": "base.css"
+	},
+	{
+		"title": "Dark",
+		"file": "dark.css"
+	},
+	{
+		"title": "Dark (orange variant)",
+		"file": "dark-orange.css"
+	}
+]

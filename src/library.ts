@@ -115,9 +115,7 @@ export class Library {
         loadSuccessDialog.showModal();
     }
 
-    static processDeletedFiles(tx: IDBPTransaction<unknown, string[], "readwrite">, deleted: FileSystemFile[], changedAlbums: Set<number>, progressBar: HTMLProgressElement, loadingLabel: HTMLElement) {
-		progressBar.max = deleted.length;
-
+    static processDeletedFiles(tx: IDBPTransaction<unknown, string[], "readwrite">, deleted: FileSystemFile[], changedAlbums: Set<number>, progressBar: HTMLDivElement, loadingLabel: HTMLElement) {
 		for (let i = 0; i < deleted.length; i++) {
 			const info = deleted[i];
             const trackId = Track.fileIdToTrackId.get(info.id);
@@ -170,7 +168,7 @@ export class Library {
             }
 
             // Update progress bar
-            progressBar.value = i + 1;
+			progressBar.style.setProperty("--progress", `${100 * (i + 1 / deleted.length)}%`);
             loadingLabel.textContent = `Removed file ${i + 1} / ${deleted.length}`;
         }
     }
@@ -212,11 +210,13 @@ export class Library {
         const added = [...changes.newFiles];
         added.push(...changes.changedFiles);
 
-        const progress_bar = document.getElementById("progress_bar")! as HTMLProgressElement;
+        const progress_bar = document.getElementById("progress_bar")! as HTMLDivElement;
 
         const changedTracks = new Set<number>();
         const changedAlbums = new Set<number>();
         const changedArtists = new Set<number>();
+
+		progress_bar.classList.remove("indeterminate");
 
         const deleteTransaction = db.transaction([Track.STORE_NAME, Album.STORE_NAME, Artist.STORE_NAME, "collections"], "readwrite");
         this.processDeletedFiles(deleteTransaction, deleted, changedAlbums, progress_bar, loading_lbl);
@@ -231,7 +231,6 @@ export class Library {
 		}
 
         let countDone = 0;
-        progress_bar.max = added.length;
 
         const protos: ProtoTrack[] = [];
 		for (const { id, handle, path, mimeType } of added) {
@@ -256,13 +255,12 @@ export class Library {
                 }
             }
             countDone++;
-            progress_bar.value = countDone;
+			progress_bar.style.setProperty("--progress", `${100 * (countDone / added.length)}%`);
             loading_lbl.textContent = `Added new file ${countDone} / ${added.length}`;
 		}
 
         loading_lbl.textContent = `Constructing albums from ${protos.length} discovered tracks`;
-        progress_bar.removeAttribute("max");
-        progress_bar.removeAttribute("value");
+		progress_bar.classList.add("indeterminate");
 
         // Preload with existing albums
         const albums = [...Album.albums.values()];
@@ -311,8 +309,6 @@ export class Library {
         }
 
         loading_lbl.textContent = "Synchronizing library to database...";
-        progress_bar.removeAttribute("max");
-        progress_bar.removeAttribute("value");
 
         // Make sure deletion is done
         await deleteTransaction.done;
@@ -348,8 +344,6 @@ export class Library {
         load_dialog.close();
 
         loading_lbl.textContent = "Linking artists...";
-        progress_bar.removeAttribute("max");
-        progress_bar.removeAttribute("value");
 
         // affects in-memory only
         Track.linkToArtists();

@@ -11,7 +11,16 @@
     <link rel="shortcut icon" href="bmp.png" type="image/png">
     <link rel="preload" href="release_notes.json" as="fetch" crossorigin>
     <link rel="preload" href="missing.png" as="image">
-    <script src="dist/main.js"></script>
+	<script>
+		const customCSS = localStorage.getItem('custom-css');
+		const style = document.createElement("style");
+		style.id = "inserted-styles";
+		document.head.appendChild(style);
+		if (customCSS !== null) {
+			style.textContent = customCSS;
+		}
+	</script>
+	<script src="dist/main.js"></script>
 </head>
 
 <body>
@@ -102,7 +111,7 @@
     <dialog style="width: 400px" id="load_dialog">
         <div class="content">
             <p>Loading music library. This might take a while.</p>
-            <progress id="progress_bar" style="display: block; width: 100%"></progress>
+            <div id="progress_bar" class="progress-bar indeterminate"><div class="inner"></div></div>
             <p style="text-align: center;" id="loading_lbl"></p>
         </div>
     </dialog>
@@ -229,6 +238,24 @@
             <button id="close-btn" onclick="this.closest('dialog').close()">Close</button>
         </div>
     </dialog>
+    <dialog style="width: 500px" id="change-styles-dialog">
+        <div class="content">
+            <h2>Change Styles and Theme</h2>
+			<p>
+				Preset:
+				<select id="preset-select">
+					<option value=""></option>
+				</select>
+			</p>
+			<textarea id="css-text" style="resize: vertical; white-space: pre; overflow-x: auto" rows="30" placeholder="/* Custom CSS here */"></textarea>
+        </div>
+        <div class="button-bar">
+            <div class="glue"></div>
+            <button id="test-btn">Preview</button>
+            <button id="apply-btn">Save</button>
+            <button id="close-btn">Close</button>
+        </div>
+    </dialog>
     <div class="sidebar resizable-panel resize-right" style="--size: 200px" data-min-size="150" data-default-size="200">
         <div class="resize-handle"></div>
         <div id="sidebar"></div>
@@ -249,7 +276,7 @@
     </div>
     <header>
         <div id="menubar"></div>
-        <div style="border-left: 1px solid #ccc; height: 16px"></div>
+        <div class="separator"></div>
         <div class="breadcrumbs" id="breadcrumbs"></div>
         <div class="glue"></div>
         <div id="main_view_select" style="display: none">
@@ -386,7 +413,11 @@
             </div>
         </div>
     </div>
-    <div class="lyrics-panel" style="display: none;"></div>
+    <div class="lyrics-panel resizable-panel resize-left" style="display: none; --size: 350px;" data-min-size="250" data-default-size="350">
+        <div class="resize-handle"></div>
+        <div id="lyrics-text"></div>
+        <div id="no-lyrics">Lyrics unavailable</div>
+    </div>
     <div class="playlist resizable-panel resize-left" id="playlist_panel" style="--size: 300px" data-min-size="200" data-default-size="300">
         <div class="resize-handle"></div>
         <div class="playlist-bar">
@@ -417,7 +448,7 @@
             <div class="current-media">
                 <span class="track-title ellipsis" id="current_track_title_lbl">Nothing is playing</span>
                 <span class="track-time"></span>
-                <div class="progress-bar disabled" style="--progress: 0%">
+                <div class="playbar disabled" style="--progress: 0%">
                     <div class="hovercatch"></div>
                     <div class="meter"></div>
                     <div class="thumb"></div>
@@ -428,7 +459,7 @@
             <button class="square playlist-toggle" id="playlist_btn" title="Toggle playlist">
                 <svg class="icon" width="24" height="24"><use href="#icon-playlist-music"/></svg>
             </button>
-            <button class="square lyrics-view" title="View song lyrics" disabled>
+            <button class="square lyrics-view" title="View song lyrics">
                 <svg class="icon" width="24" height="24"><use href="#icon-text"/></svg>
             </button>
             <div class="separator"></div>

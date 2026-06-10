@@ -9,6 +9,8 @@ import { CompareEntry, CompareFunction, compareSmartAlpha, compareStack, compare
 import { Artist } from "../artist.ts";
 import { SelectableList } from "./selectablelist.ts";
 import { BrowserState, MusicBrowser } from "../musicbrowser.ts";
+import { MenuSystem } from "./menu.ts";
+import { getTracksMenuItems } from "./menus.ts";
 
 declare const template_album: HTMLTemplateElement;
 declare const template_track_list_item: HTMLTemplateElement;
@@ -30,12 +32,12 @@ export class MusicBrowserView {
     private static albumsList: HTMLDivElement;
 
     private static artistsList: HTMLDivElement;
+	private static artistIds: number[] = [];
     private static artistsSelList: SelectableList;
 
     private static tracksList: HTMLDivElement;
+	private static trackIds: number[] = [];
     private static tracksSelList: SelectableList;
-
-    // private static breadcrumbs: HTMLDivElement;
 
     private static modeContainer: HTMLElement;
     private static modeSelect: HTMLSelectElement;
@@ -67,6 +69,30 @@ export class MusicBrowserView {
         this.tracksList = this.rootElement.querySelector(".tracks-list")!;
         const trackTableBody = this.tracksList.querySelector("tbody")!;
         this.tracksSelList = SelectableList.register(trackTableBody);
+		
+		MenuSystem.setContextMenu(trackTableBody, () => {
+			const selectedIndices = this.tracksSelList.getSelected();
+			const selectedTrackIds = this.tracksSelList.getSelected().map(index => this.trackIds[index]);
+			if (selectedIndices.length == 0) return null;
+			return {
+				menuitems: [
+					{
+						kind: "item",
+						text: "Play all",
+						default: true,
+						click: () => this.playAllTracks(selectedIndices[0])
+					},
+					{ kind: "separator" },
+					getTracksMenuItems(selectedTrackIds),
+					// { kind: "separator" },
+					// {
+					// 	kind: "item",
+					// 	text: "Copy metadata as TSV",
+					// 	click: () => this.copyAsTSV()
+					// }
+				]
+			}
+		});
 
         // this.breadcrumbs = document.querySelector("header > .breadcrumbs");
         this.modeContainer = document.querySelector("header #main_view_select")!;
@@ -210,6 +236,35 @@ export class MusicBrowserView {
         }
     }
 
+    private static getAlbumElement(album: Album): DocumentFragment {
+        const clone = document.importNode(template_album.content, true);
+
+        const albumClick = function () {
+            MusicBrowser.modify(state => state.albumId = album.id);
+        }
+
+        const cover: HTMLImageElement = clone.querySelector(".cover")!;
+        cover.src = album.getCoverURL();
+        cover.addEventListener("click", albumClick);
+
+        const albumName: HTMLElement = clone.querySelector(".album-name")!;
+        albumName.textContent = album.name ?? DEFAULT_ALBUM_NAME;
+        albumName.title = album.name ?? DEFAULT_ALBUM_NAME;
+        albumName.addEventListener("click", albumClick);
+
+        const albumArtist: HTMLElement = clone.querySelector(".album-artist")!;
+        const albumArtistName = album.getArtistName() ?? DEFAULT_ARTIST_NAME;
+        albumArtist.textContent = albumArtistName;
+        albumArtist.title = albumArtistName;
+
+        albumArtist.addEventListener("click", () => MusicBrowser.navigate({
+            collection: MusicBrowser.collection,
+            artistId: album.artist
+        }));
+
+        return clone;
+    }
+
     static showArtists() {
         let artistIds;
 
@@ -248,78 +303,6 @@ export class MusicBrowserView {
         }
     }
 
-    static showTracks() {
-        const allTracks = Array.from(Track.getAllIds());
-        const collectionTracks = MusicBrowser.collection?.getTrackIds();
-        const trackIds = collectionTracks ? allTracks.filter(x => collectionTracks.has(x)) : allTracks;
-
-        const tracks = trackIds.map(trackId => Track.byID(trackId)!);
-        const compareFn: CompareFunction<Track> = compareStack([
-            new CompareEntry(track => Album.byID(track.albumId)!.getArtistName(), compareUndefinedLast(compareSmartAlpha)),
-            new CompareEntry(track => Album.byID(track.albumId)!.name, compareUndefinedLast(compareSmartAlpha)),
-            new CompareEntry(track => track.disc, (a, b) => (a ?? 0) - (b ?? 0)),
-            new CompareEntry(track => track.no, (a, b) => (a ?? 0) - (b ?? 0)),
-        ]);
-        tracks.sort(compareFn);
-
-        const tbody = this.tracksList.querySelector("tbody")!;
-        tbody.innerHTML = "";
-
-        for (const track of tracks) {
-            const album = Album.byID(track.albumId)!;
-            tbody.appendChild(this.getTrackElement(album, track));
-        }
-    }
-
-    private static getAlbumElement(album: Album): DocumentFragment {
-        const clone = document.importNode(template_album.content, true);
-
-        const albumClick = function () {
-            MusicBrowser.modify(state => state.albumId = album.id);
-        }
-
-        const cover: HTMLImageElement = clone.querySelector(".cover")!;
-        cover.src = album.getCoverURL();
-        cover.addEventListener("click", albumClick);
-
-        const albumName: HTMLElement = clone.querySelector(".album-name")!;
-        albumName.textContent = album.name ?? DEFAULT_ALBUM_NAME;
-        albumName.title = album.name ?? DEFAULT_ALBUM_NAME;
-        albumName.addEventListener("click", albumClick);
-
-        const albumArtist: HTMLElement = clone.querySelector(".album-artist")!;
-        const albumArtistName = album.getArtistName() ?? DEFAULT_ARTIST_NAME;
-        albumArtist.textContent = albumArtistName;
-        albumArtist.title = albumArtistName;
-
-        albumArtist.addEventListener("click", () => MusicBrowser.navigate({
-            collection: MusicBrowser.collection,
-            artistId: album.artist
-        }));
-
-        return clone;
-    }
-
-    private static getTrackElement(album: Album, track: Track): DocumentFragment {
-        const clone = document.importNode(template_track_list_item.content, true);
-
-        const cells = clone.querySelectorAll("td");
-        cells[0].title = cells[0].textContent = album.name ?? DEFAULT_ALBUM_NAME;
-        cells[1].title = cells[1].textContent = album.getArtistName() ?? DEFAULT_ARTIST_NAME;
-        cells[2].title = cells[2].textContent = track.disc ? `${track.disc}-${track.no}` : `${track.no ?? ""}`;
-        cells[3].title = cells[3].textContent = track.title;
-        cells[4].title = cells[4].textContent = convertTime(track.duration);
-        cells[5].title = cells[5].textContent = Artist.getArtistString(track.artists) ?? "";
-
-        clone.firstElementChild!.addEventListener("dblclick", () => {
-            Playlist.add(track.id);
-            Playlist.skipToEnd();
-            Player.play();
-        });
-
-        return clone;
-    }
-
     private static getArtistElement(artist: Artist): DocumentFragment {
         const clone = document.importNode(template_artist_list_item.content, true);
 
@@ -334,5 +317,52 @@ export class MusicBrowserView {
         }));
 
         return clone;
+    }
+
+    static showTracks() {
+        const allTracks = Array.from(Track.getAllIds());
+        const collectionTracks = MusicBrowser.collection?.getTrackIds();
+        const trackIds = collectionTracks ? allTracks.filter(x => collectionTracks.has(x)) : allTracks;
+
+        const tracks = trackIds.map(trackId => Track.byID(trackId)!);
+        const compareFn: CompareFunction<Track> = compareStack([
+            new CompareEntry(track => Album.byID(track.albumId)!.getArtistName(), compareUndefinedLast(compareSmartAlpha)),
+            new CompareEntry(track => Album.byID(track.albumId)!.name, compareUndefinedLast(compareSmartAlpha)),
+            new CompareEntry(track => track.disc, (a, b) => (a ?? 0) - (b ?? 0)),
+            new CompareEntry(track => track.no, (a, b) => (a ?? 0) - (b ?? 0)),
+        ]);
+        tracks.sort(compareFn);
+		this.trackIds = tracks.map(track => track.id);
+
+        const tbody = this.tracksList.querySelector("tbody")!;
+        tbody.innerHTML = "";
+
+        for (const track of tracks) {
+            const album = Album.byID(track.albumId)!;
+            tbody.appendChild(this.getTrackElement(album, track));
+        }
+    }
+
+    private static getTrackElement(album: Album, track: Track): DocumentFragment {
+        const clone = document.importNode(template_track_list_item.content, true);
+
+        const cells = clone.querySelectorAll("td");
+        cells[0].title = cells[0].textContent = album.name ?? DEFAULT_ALBUM_NAME;
+        cells[1].title = cells[1].textContent = album.getArtistName() ?? DEFAULT_ARTIST_NAME;
+        cells[2].title = cells[2].textContent = track.disc ? `${track.disc}-${track.no}` : `${track.no ?? ""}`;
+        cells[3].title = cells[3].textContent = track.title;
+        cells[4].title = cells[4].textContent = convertTime(track.duration);
+        cells[5].title = cells[5].textContent = Artist.getArtistString(track.artists) ?? "";
+
+        return clone;
+    }
+
+    private static playAllTracks(startIndex?: number) {
+		startIndex ??= 0;
+
+        Playlist.clear();
+        Playlist.add(...this.trackIds);
+        Playlist.changeTrack(startIndex);
+        Player.play();
     }
 }

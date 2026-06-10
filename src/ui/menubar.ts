@@ -1,6 +1,7 @@
 import { CassetteRecorderView } from "./cassetterecorderview.ts";
 import { Menu, MenuSystem } from "./menu.ts";
 import { showReleaseNotesDialog } from "./releasenotes.ts";
+import { StylesEditor } from "./styleseditor.ts";
 
 declare const playver: HTMLDialogElement;
 
@@ -20,17 +21,9 @@ export class MenuBar {
                     menuitems: [
                         {
                             kind: "item",
-                            text: "Rescan library"
+                            text: "Change styling / theme",
+							click: () => StylesEditor.openDialog()
                         },
-                        {
-                            kind: "item",
-                            text: "Manage collections"
-                        }
-                        // { kind: "separator" },
-                        // {
-                        //     kind: "item",
-                        //     text: "Preferences"
-                        // },
                     ]
                 }
             },
