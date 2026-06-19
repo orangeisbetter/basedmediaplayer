@@ -1,5 +1,5 @@
 :root {
-	scrollbar-color: var(--scrollbar-thumb-color) var(--scrollbar-background-color);
+	scrollbar-color: var(--scrollbar-thumb-color) var(--scrollbar-background);
 }
 
 body {
@@ -16,7 +16,7 @@ body {
     grid-template-columns: auto 1fr auto auto;
     height: 100vh;
     overflow: hidden;
-	background-color: var(--background-color);
+	background: var(--background-main);
 	color: var(--foreground-color);
 }
 
@@ -37,8 +37,8 @@ code {
 }
 
 button {
-    border: 1px solid var(--border-color);
-    background-color: var(--background-color);
+    border: var(--border);
+    background: var(--background-main);
 	color: var(--foreground-color);
     padding: 3px 8px;
 
@@ -61,9 +61,9 @@ input[type=number],
 select,
 textarea {
     appearance: none;
-    border: 1px solid var(--border-color);
+    border: var(--border);
     padding: 3px 8px;
-    background-color: var(--background-color);
+    background: var(--background-main);
 	color: var(--foreground-color);
     min-width: 0;
 }
@@ -101,8 +101,8 @@ textarea {
 	display: block;
 	min-width: 200px;
 	height: 8px;
-	border: 1px solid var(--border-color);
-	background-color: var(--progress-bar-background);
+	border: var(--border);
+	background: var(--progress-background);
 
 	.inner {
 		position: absolute;
@@ -110,7 +110,7 @@ textarea {
 		left: 0;
 		height: 100%;
 		width: var(--progress, 0%);
-		background: var(--accent-color);
+		background: var(--progress-bar);
 	}
 	
 	&.indeterminate .inner {
@@ -120,7 +120,7 @@ textarea {
 }
 
 fieldset {
-    border: 1px solid var(--border-color);
+    border: var(--border);
     margin: 0;
 
     legend {
@@ -153,8 +153,8 @@ ul {
 }
 
 dialog {
-    border: 1px solid var(--border-color);
-	background-color: var(--background-color);
+    border: var(--border);
+	background: var(--background-main);
 	color: var(--foreground-color);
     padding: 0;
     flex-direction: column;
@@ -168,9 +168,9 @@ dialog {
     }
 
     .button-bar {
-        background-color: var(--background-color-alt);
+        background: var(--background-alt);
         padding: 8px 16px;
-        border-top: 1px solid var(--border-color);
+        border-top: var(--border);
     }
 }
 
@@ -242,7 +242,7 @@ dialog {
 
 .sidebar {
     grid-area: sidebar;
-    border-right: 1px solid var(--border-color);
+    border-right: var(--border);
 
     display: flex;
     flex-direction: column;
@@ -250,7 +250,7 @@ dialog {
     .search {
         appearance: none;
         padding: 4px 8px;
-        border-bottom: 1px solid var(--border-color);
+        border-bottom: var(--border);
     }
 }
 
@@ -261,12 +261,12 @@ header {
     flex-direction: row;
     align-items: center;
     gap: 8px;
-    border-bottom: 1px solid var(--border-color);
+    border-bottom: var(--border);
 
     overflow: hidden;
     white-space: nowrap;
 
-    background-color: var(--background-color-alt);
+    background: var(--background-alt);
     /* background-image: linear-gradient(#fff, #ddd 50%, var(--border-color) 50%, #ddd); */
 
     .menubar {
@@ -276,15 +276,15 @@ header {
 
         .menubar-item {
             border-color: transparent;
-            background-color: transparent;
+            background: transparent;
 
             &:hover {
-                background-color: var(--background-color);
+                background: var(--background-main);
             }
 
             &.open {
                 border-color: var(--border-color);
-                background-color: var(--background-color);
+                background: var(--background-main);
                 border-bottom: none;
                 padding-bottom: 5px;
                 margin-bottom: -1px;
@@ -294,7 +294,7 @@ header {
     }
 
 	.separator {
-		border-left: 1px solid var(--border-color);
+		border-left: var(--border);
 		height: 16px
 	}
 
@@ -584,7 +584,7 @@ table {
     border-collapse: collapse;
 
     thead {
-        background-color: var(--background-color);
+        background: var(--background-main);
         text-align: left;
     }
 
@@ -599,7 +599,7 @@ table {
 
 .lyrics-panel {
     grid-area: lyrics;
-    border-left: 1px solid var(--border-color);
+    border-left: var(--border);
 	
     display: flex;
     flex-direction: column;
@@ -662,7 +662,7 @@ table {
 
 .playlist {
     grid-area: playlist;
-    border-left: 1px solid var(--border-color);
+    border-left: var(--border);
     display: flex;
     /* overflow-y: hidden; */
     flex-direction: column;
@@ -676,7 +676,7 @@ table {
         display: flex;
         flex-direction: row;
         gap: 4px;
-        border-bottom: 1px solid var(--border-color);
+        border-bottom: var(--border);
         justify-content: center;
     }
 
@@ -705,6 +705,12 @@ table {
                 background-position: 4px center;
                 color: var(--accent-color);
             }
+
+			&.error {
+				background-image: var(--playlist-error-icon);
+				background-repeat: no-repeat;
+				background-position: 4px center;
+			}
 
             .selector {
                 align-self: center;
@@ -739,7 +745,7 @@ table {
     }
 
     .playlist-info {
-        border-top: 1px solid var(--border-color);
+        border-top: var(--border);
         padding: 4px 8px;
     }
 }
@@ -747,8 +753,8 @@ table {
 .player {
     grid-area: player;
     padding: 8px 16px;
-    background-color: var(--background-color-alt);
-    border-top: 1px solid var(--border-color);
+    background: var(--background-alt);
+    border-top: var(--border);
     display: flex;
     flex-direction: row;
     align-items: center;
@@ -815,7 +821,7 @@ table {
             .playbar {
                 grid-area: progress;
                 height: 4px;
-                background-color: var(--playbar-background);
+                background: var(--playbar-background);
                 position: relative;
                 display: flex;
                 flex-direction: row;
@@ -868,14 +874,14 @@ table {
                 left: 50%;
                 transform: translateX(round(nearest, -50%, 1px));
                 width: max-content;
-                background-color: var(--background-color);
+                background: var(--background-main);
                 padding: 2px 8px;
-                border: 1px solid var(--border-color);
+                border: var(--border);
             }
         }
 
         .separator {
-            border-left: 1px solid var(--border-color);
+            border-left: var(--border);
             align-self: stretch;
         }
     }
@@ -884,7 +890,7 @@ table {
 .selectable-list {
     >* {
         &:hover {
-            background-color: var(--item-hover);
+            background-color: var(--item-hover-color);
         }
 
         &.selected {
@@ -938,7 +944,7 @@ svg.icon {
         padding: 2px 8px;
         border: 1px solid white;
         background-color: var(--accent-color);
-        color: var(--background-color);
+        color: var(--background-main);
     }
 }
 
@@ -948,18 +954,18 @@ html {
 
 hr {
     border: 0;
-    border-bottom: 1px solid var(--border-color);
+    border-bottom: var(--border);
 }
 
 .menu {
     line-height: 16px;
     margin: 0;
     list-style: none;
-    border: 1px solid var(--border-color);
+    border: var(--border);
     padding: 0;
     padding: 2px;
     display: inline-grid;
-    background-color: var(--background-color);
+    background: var(--background-main);
     min-width: 140px;
     box-shadow: 4px 4px 4px -2px #0008;
     position: fixed;
@@ -986,7 +992,7 @@ hr {
             color: var(--foreground-color-inactive);
 
             &:hover {
-                background-color: var(--item-hover);
+                background-color: var(--item-hover-color);
             }
         }
         &.default {
@@ -1007,7 +1013,7 @@ hr {
 
     .separator {
         margin-left: 24px;
-        border-bottom: 1px solid var(--border-color);
+        border-bottom: var(--border);
         margin-block: 2px;
     }
 }
@@ -1021,20 +1027,31 @@ hr {
 	--font-size: 13px;
 
     --accent-color: #09f;
-	--background-color: #fff;
-	--background-color-alt: #eee;
+	--background-main-color: #fff;
+	--background-alt-color: #eee;
 	--border-color: #ccc;
 	--foreground-color: #000;
 	--foreground-color-inactive: #777;
 	--button-color-disabled: #bbb;
-	--item-hover: #0001;
-	--progress-bar-background: var(--background-color);
-	--playbar-background: #a9a9a9;
-	--scrollbar-background-color: var(--background-color);
+	--item-hover-color: #0001;
+	--progress-background-color: initial;
+	--progress-bar-color: initial;
+	--playbar-background-color: #a9a9a9;
+	--scrollbar-background-color: initial;
 	--scrollbar-thumb-color: #666;
+	
+	--background-main: var(--background-main-color);
+	--background-alt: var(--background-alt-color);
+	--border: 1px solid var(--border-color);
+	--progress-background: var(--progress-background-color, var(--background-main));
+	--progress-bar: var(--progress-bar-color, var(--accent-color));
+	--playbar-background: var(--playbar-background-color);
+	--scrollbar-background: var(--scrollbar-background-color, var(--background-main));
+	--scrollbar-thumb: var(--scrollbar-thumb-color);
 
 	--menu-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%23000' d='m13.292 12l-4.6-4.6l.708-.708L14.708 12L9.4 17.308l-.708-.708z'/%3E%3C/svg%3E");
 	--select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24'%3E%3Cpath d='M7.41 8.58L12 13.17l4.59-4.59L18 10l-6 6l-6-6z'/%3E%3C/svg%3E");
 	--tree-view-caret: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' version='1.1' viewBox='4 4 16 16'%3E%3Cpath fill='%23000' d='m10 17 5-5-5-5z'/%3E%3C/svg%3E");
 	--playlist-indicator: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%2309f' d='M8 5.14v14l11-7z'/%3E%3C/svg%3E");
+	--playlist-error-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%23f00' d='M12 2c5.53 0 10 4.47 10 10s-4.47 10-10 10S2 17.53 2 12S6.47 2 12 2m3.59 5L12 10.59L8.41 7L7 8.41L10.59 12L7 15.59L8.41 17L12 13.41L15.59 17L17 15.59L13.41 12L17 8.41z'/%3E%3C/svg%3E");
 }

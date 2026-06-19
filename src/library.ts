@@ -3,6 +3,7 @@ import { Album } from "./album.ts";
 import { ProtoTrack, Track } from "./track.ts";
 import { ensureReadPermission, FileSystem, FileSystemFile, ScanResult } from "./filesystem.ts";
 import { Artist } from "./artist.ts";
+import { Collection } from "./collection.ts";
 
 interface Window {
     showDirectoryPicker: () => Promise<FileSystemDirectoryHandle>
@@ -202,7 +203,7 @@ export class Library {
             file.type.startsWith("audio") ||
             this.isCoverImage(file.type, file.name)
         ));
-        console.log(changes);
+        console.log("[debug] Filesystem changes:", changes);
 
         const deleted = [...changes.removedFiles];
         deleted.push(...changes.changedFiles);
@@ -313,7 +314,7 @@ export class Library {
         // Make sure deletion is done
         await deleteTransaction.done;
 
-        console.log({ changedTracks, changedAlbums, changedArtists });
+        console.log("[debug] Resulting database changes:", { changedTracks, changedAlbums, changedArtists });
 
         if (changedTracks.size > 0 || changedAlbums.size > 0 || changedArtists.size > 0) {
             const updateTransaction = db.transaction([Track.STORE_NAME, Album.STORE_NAME, Artist.STORE_NAME], "readwrite");
@@ -353,10 +354,13 @@ export class Library {
     }
 
     static async loadLibrary(db: IDBPDatabase, _forceRescan: boolean) {
+		Collection.init(db);
+		
         await Promise.all([
             Track.loadAll(db),
             Album.loadAll(db),
             Artist.loadAll(db),
+			Collection.loadAll()
         ]);
 
         Track.linkToArtists();

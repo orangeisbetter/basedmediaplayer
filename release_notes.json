@@ -173,5 +173,21 @@
 		"bug_fixes": [
 			"Restyled progress bars with custom elements and styling to support theming"
 		]
+	},
+	{
+		"version": "0.5.2",
+		"features": [
+			"Implemented proper error handling for track loading and playback"
+		],
+		"changes": [
+			"Disabled 'Play next' context menu item when the playlist is empty",
+			"Sorted collections alphabetically in context menus",
+			"Changed style sheet to allow for easier, more thorough customizability",
+			"Updated preset themes to match updated style sheet"
+		],
+		"bug_fixes": [
+			"Fixed an issue where the first track would be loaded unnecessarily when adding to an empty playlist in a 'play all' operation, only to be immediately replaced",
+			"Fixed a bug where removing a track would not also remove it from any collections it was a member of, which would lead to bugged collections"
+		]
 	}
 ]

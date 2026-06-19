@@ -152,9 +152,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     Library.loadLibrary(db, rescan).then(() => {
         BreadcrumbsView.init();
         MusicBrowserView.init(db, document.querySelector(".browser-view")!);
-        Collection.init(db);
-        return Collection.loadAll();
-    }).then(() => {
         LibraryTreeView.init(document.querySelector("#sidebar")!);
     });
 

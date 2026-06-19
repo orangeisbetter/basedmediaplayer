@@ -1,16 +1,14 @@
 /* ==== Dark mode styles (orange variant) ===== */
 :root {
     /* Colors */
-    --background-color: #171717;
-    --background-color-alt: #272727;
+    --background-main-color: #171717;
+    --background-alt-color: #272727;
     --border-color: #555;
     --foreground-color: #ffffff;
     --foreground-color-inactive: #666;
     --button-color-disabled: #666;
-    --item-hover: #fff1;
-    --progress-bar-background: var(--background-color);
+    --item-hover-color: #fff1;
     --playbar-background: #555;
-    --scrollbar-background-color: var(--background-color);
     --scrollbar-thumb-color: #666;
     
     /* CSS icons */

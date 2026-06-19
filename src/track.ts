@@ -179,7 +179,9 @@ export class Track implements TrackStore {
 
     static async getTrackMetadata(file: File, fileId: number, path: string): Promise<ProtoTrack | null> {
         try {
-            const { common, format } = await parseBlob(file);
+			const metadata = await parseBlob(file);
+			const common = metadata.common;
+			const format = metadata.format;
 
             const parts = path.split("/", 3);
 

@@ -137,6 +137,8 @@ export class PlaylistView {
         Playlist.events.shuffle.addListener(PlaylistView.shuffleHandler);
         Playlist.events.trackChange.addListener(PlaylistView.trackChangeHandler);
         Playlist.events.numTracksChange.addListener(PlaylistView.numTracksChangeHandler);
+
+		Player.events.error.addListener(this.playerErrorHandler);
     }
 
     static scrollIntoView() {
@@ -358,12 +360,18 @@ export class PlaylistView {
         PlaylistView.currentTrack?.classList.remove("active");
         if (index != null) {
             PlaylistView.currentTrack = PlaylistView.getItemByIndex(index)!;
+            PlaylistView.currentTrack.classList.remove("error");
             PlaylistView.currentTrack.classList.add("active");
         } else {
             PlaylistView.currentTrack = null;
         }
         PlaylistView.scrollIntoView();
     }
+
+	private static readonly playerErrorHandler = () => {
+		if (PlaylistView.currentTrack === null) return;
+		PlaylistView.currentTrack.classList.add("error");
+	}
 
     private static numTracksChangeHandler({ number, duration }: PlaylistNumTracksChangeEventData) {
         // Handle this somehow

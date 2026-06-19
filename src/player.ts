@@ -3,9 +3,27 @@ import { Emitter } from "./emitter.ts";
 import { Track } from "./track.ts";
 import { FileSystem } from "./filesystem.ts";
 
+export enum PlayerErrorCode {
+	FILE_NOT_FOUND,
+	PERMISSION_DENIED,
+	HANDLE_INACCESSIBLE,
+	UNSUPPORTED_FORMAT,
+	PLAYBACK_ABORTED,
+	DECODE,
+	UNKNOWN,
+};
+
+export class PlayerError extends Error {
+	constructor(public readonly code: PlayerErrorCode, message: string, public readonly originalError?: unknown) {
+		super(message);
+		this.name = "PlayerError";
+	}
+}
+
 export class Player {
     private static db: IDBPDatabase;
 
+	private static currentTrackId: number | null = null;
     private static currentTrack: Track | null = null;
     private static file: Blob | null = null;
     private static url: string;
@@ -25,6 +43,7 @@ export class Player {
         finish: new Emitter<number>(),
         clear: new Emitter<void>(),
         timeChange: new Emitter<number>(),
+		error: new Emitter<PlayerError>(),
     };
 
     constructor() {
@@ -47,35 +66,106 @@ export class Player {
     }
 
     static changeTrack(trackId: number | null): void {
+		// Prevent changing tracks if the track id is the same as current (nothing to do)
+		if (trackId === Player.currentTrackId) {
+			return;
+		}
+		Player.currentTrackId = trackId;
+		
+		Player.playing = false;
+		Player.audio.pause();
+		Player.audio.removeAttribute("src");
+		
         if (trackId === null) {
-            Player.currentTrack = null;
-            Player.audio.pause();
-            Player.audio.src = "";
+			Player.currentTrack = null;
+			Player.audio.load();
             Player.events.clear.emit();
-            return;
-        }
-        const track = Track.byID(trackId);
-        if (!track) {
-            Player.loadPromise = Promise.reject();
-            return;
-        }
-        Player.playing = false;
-        URL.revokeObjectURL(Player.url);
-        Player.currentTrack = track;
-        Player.loadPromise = Player.loadTrackAudio(FileSystem.getFileByID(Player.currentTrack.fileId)!.handle);
+		} else {
+			const track = Track.byID(trackId)!;
+			Player.currentTrack = track;
+			Player.loadPromise = Player.loadTrackAudio(FileSystem.getFileByID(Player.currentTrack.fileId)!.handle);
+			Player.loadPromise.catch(() => {});
+		}
     }
 
     private static async loadTrackAudio(fileHandle: FileSystemFileHandle): Promise<void> {
         const opts = { mode: "read" };
-        if ((await fileHandle.queryPermission(opts)) !== "granted") {
-            if ((await fileHandle.requestPermission(opts)) !== "granted") {
-                throw Error("Unable to access file handle.");
-            }
-        }
-        Player.file = await fileHandle.getFile();
-        Player.url = URL.createObjectURL(Player.file);
-        Player.audio.src = Player.url;
+
+		try {
+			if (
+				(await fileHandle.queryPermission(opts)) !== "granted" &&
+				(await fileHandle.requestPermission(opts)) !== "granted"
+			) {
+				throw new PlayerError(PlayerErrorCode.PERMISSION_DENIED, "Permission to access file was denied.");
+			}
+		} catch (e: unknown) {
+			if (e instanceof PlayerError) throw e;
+			if ((e as Error).name === "NotAllowedError") {
+				throw new PlayerError(PlayerErrorCode.PERMISSION_DENIED, "Permission to access file was denied.", e);
+			}
+			throw new PlayerError(PlayerErrorCode.UNKNOWN, "Unexpected error while requesting file permission.", e);
+		}
+
+		try {
+			Player.file = await fileHandle.getFile();
+		} catch (e: unknown) {
+			if ((e as Error).name === "NotFoundError") {
+				throw new PlayerError(PlayerErrorCode.FILE_NOT_FOUND, "File no longer exists or has been moved.", e);
+			}
+			throw new PlayerError(PlayerErrorCode.UNKNOWN, "Unexpected error while accessing file.", e);
+		}
+
+		if (Player.url) URL.revokeObjectURL(Player.url);
+		Player.url = URL.createObjectURL(Player.file);
+
+		await new Promise<void>((resolve, reject) => {
+			const loadHandler = () => {
+				removeHandlers();
+				resolve();
+			}
+			
+			const errorHandler = () => {
+				removeHandlers();
+				reject(Player.toPlayerError(Player.audio.error));
+			}
+	
+			const removeHandlers = () => {
+				Player.audio.removeEventListener("canplay", loadHandler);
+				Player.audio.removeEventListener("error", errorHandler);
+			}
+	
+			Player.audio.addEventListener("canplay", loadHandler);
+			Player.audio.addEventListener("error", errorHandler);
+			
+			Player.audio.src = Player.url;
+		});
     }
+
+	private static toPlayerError(e: unknown): PlayerError {
+		if (e instanceof PlayerError) return e;
+		if (e instanceof DOMException) {
+			switch (e.name) {
+				case 'NotFoundError':
+					return new PlayerError(PlayerErrorCode.FILE_NOT_FOUND, e.message, e);
+				case 'NotSupportedError':
+					return new PlayerError(PlayerErrorCode.UNSUPPORTED_FORMAT, e.message, e);
+				case 'AbortError':
+					return new PlayerError(PlayerErrorCode.PLAYBACK_ABORTED, e.message, e);
+			}
+		}
+		if (e instanceof MediaError) {
+			switch (e.code) {
+				case MediaError.MEDIA_ERR_ABORTED:
+					return new PlayerError(PlayerErrorCode.PLAYBACK_ABORTED, e.message, e);
+				case MediaError.MEDIA_ERR_DECODE:
+					return new PlayerError(PlayerErrorCode.DECODE, e.message, e);
+				case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
+					return new PlayerError(PlayerErrorCode.UNSUPPORTED_FORMAT, "File is not a supported audio file format.", e);
+				// case MediaError.MEDIA_ERR_NETWORK: // should never happen, this is all local files
+			}
+		}
+		return new PlayerError(PlayerErrorCode.UNKNOWN, e instanceof Error ? e.message : "An unknown error occurred.", e);
+	}
 
     private static endedHandler() {
         Player.playing = false;
@@ -105,12 +195,23 @@ export class Player {
     }
 
     static async play(): Promise<void> {
-        if (Player.playing) return;
-        Player.audioContext.resume();
-        await Player.loadPromise;
-        Player.playing = true;
-        await Player.audio.play();
-        Player.events.play.emit(Player.currentTrack!.id);
+		if (Player.playing) return;
+
+		try {
+			Player.audioContext.resume();
+			await Player.loadPromise;
+		} catch (e) {
+			Player.events.error.emit(Player.toPlayerError(e));
+			return;
+		}
+
+		try {
+			await Player.audio.play();
+			Player.playing = true;
+			Player.events.play.emit(Player.currentTrack!.id);
+		} catch (e) {
+			Player.events.error.emit(Player.toPlayerError(e));
+		}
     }
 
     static pause() {

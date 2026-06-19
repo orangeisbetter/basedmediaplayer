@@ -91,19 +91,19 @@ export class Playlist {
      * @param trackIds The IDs of the tracks to add.
      */
     static add(...trackIds: number[]) {
-        let madeValid = false;
-        if (Playlist.isEmpty() && trackIds.length > 0) {
-            madeValid = true;
-            Playlist.currentTrackIdx = 0;
-        }
+        // let madeValid = false;
+        // if (Playlist.isEmpty() && trackIds.length > 0) {
+            // madeValid = true;
+            // Playlist.currentTrackIdx = 0;
+        // }
         Playlist.list.push(...trackIds);
         Playlist.events.add.emit(trackIds);
         if (trackIds.length > 0) {
             Playlist.events.numTracksChange.emit({ number: Playlist.getNumTracks(), duration: Playlist.getDuration() });
         }
-        if (madeValid) {
-            Playlist.events.trackChange.emit({ index: Playlist.currentTrackIdx, id: Playlist.list[Playlist.currentTrackIdx] });
-        }
+        // if (madeValid) {
+        //     Playlist.events.trackChange.emit({ index: Playlist.currentTrackIdx, id: Playlist.list[Playlist.currentTrackIdx] });
+        // }
     }
 
     /**
@@ -113,11 +113,11 @@ export class Playlist {
      * @param trackIds The IDs of the tracks to insert.
      */
     static insert(index: number, ...trackIds: number[]) {
-        let madeValid = false;
-        if (Playlist.isEmpty() && trackIds.length > 0) {
-            madeValid = true;
-            Playlist.currentTrackIdx = 0;
-        }
+        // let madeValid = false;
+        // if (Playlist.isEmpty() && trackIds.length > 0) {
+        //     madeValid = true;
+        //     Playlist.currentTrackIdx = 0;
+        // }
         if (index <= Playlist.currentTrackIdx) {
             Playlist.currentTrackIdx += trackIds.length;
         }
@@ -126,9 +126,9 @@ export class Playlist {
         if (trackIds.length > 0) {
             Playlist.events.numTracksChange.emit({ number: Playlist.getNumTracks(), duration: Playlist.getDuration() });
         }
-        if (madeValid) {
-            Playlist.events.trackChange.emit({ index: Playlist.currentTrackIdx, id: Playlist.list[Playlist.currentTrackIdx] });
-        }
+        // if (madeValid) {
+        //     Playlist.events.trackChange.emit({ index: Playlist.currentTrackIdx, id: Playlist.list[Playlist.currentTrackIdx] });
+        // }
     }
 
     /**

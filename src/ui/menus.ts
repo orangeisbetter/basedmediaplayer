@@ -1,11 +1,19 @@
 import { Collection } from "../collection.ts";
 import { Player } from "../player.ts";
 import { Playlist } from "../playlist.ts";
+import { CompareEntry, compareSmartAlpha, compareStack, compareUndefinedLast } from "../util/sort.ts";
 import { createCollection } from "./createcollection.ts";
 import { MenuEntry } from "./menu.ts";
 
 export function getTracksMenuItems(trackIds: number[]): MenuEntry {
-    return [
+	const rootCollectionMenuItems: MenuEntry[] = Collection.rootCollections
+		.map(collectionId => Collection.byID(collectionId)!)
+		.sort(compareStack([
+			new CompareEntry(collection => collection.name, compareUndefinedLast(compareSmartAlpha))
+		]))
+		.map(collection => getCollectionMenuItem(trackIds, collection));
+
+    const thing: MenuEntry = [
         {
             kind: "item",
             text: "Play",
@@ -14,7 +22,7 @@ export function getTracksMenuItems(trackIds: number[]): MenuEntry {
         {
             kind: "item",
             text: "Play next",
-            click: () => tracksPlayNext(trackIds)
+			click: Playlist.getNumTracks() == 0 ? undefined : () => tracksPlayNext(trackIds)
         },
         {
             kind: "item",
@@ -27,13 +35,13 @@ export function getTracksMenuItems(trackIds: number[]): MenuEntry {
             text: "Add to collection",
             submenu: {
                 menuitems: [
-                    () => {
-                        if (Collection.rootCollections.length == 0) return null;
-                        return [
-                            Collection.rootCollections.map(collId => getCollectionMenuItem(trackIds, Collection.byID(collId)!)),
-                            { kind: "separator" },
-                        ];
-                    },
+					() => {
+						if (rootCollectionMenuItems.length == 0) return null;
+						return [
+							rootCollectionMenuItems,
+							{ kind: "separator" }
+						];
+					},
                     {
                         kind: "item",
                         text: "Add to new collection",
@@ -58,20 +66,27 @@ export function getTracksMenuItems(trackIds: number[]): MenuEntry {
         },
         () => {
             const collections = Collection.getResidingCollections(trackIds);
-            return Array.from(collections).map(collection => ({
-                kind: "item",
-                text: `Remove from collection '${collection.name}'`,
-                click: () => collection.remove(trackIds)
-            }));
+            return Array.from(collections)
+				.sort(compareStack([
+					new CompareEntry(collection => collection.name, compareUndefinedLast(compareSmartAlpha))
+				]))
+				.map(collection => ({
+					kind: "item",
+					text: `Remove from collection '${collection.name}'`,
+					click: () => collection.remove(trackIds)
+				}));
         }
-    ]
+    ];
+	return thing;
 }
 
 function getCollectionMenuItem(trackIds: number[], collection: Collection): MenuEntry {
-    const childrenCollectionMenus: MenuEntry[] = [];
-    for (const child of collection.getChildren()) {
-        childrenCollectionMenus.push(getCollectionMenuItem(trackIds, child));
-    }
+	const childrenCollectionMenus: MenuEntry[] = Array.from(collection.getChildren())
+		.sort(compareStack([
+			new CompareEntry(collection => collection.name, compareUndefinedLast(compareSmartAlpha))
+		]))
+		.map(collection => getCollectionMenuItem(trackIds, collection));
+
     return {
         kind: "item",
         text: collection.name,
@@ -84,14 +99,14 @@ function getCollectionMenuItem(trackIds: number[], collection: Collection): Menu
                         collection.add(trackIds);
                     }
                 },
+				{ kind: "separator" },
                 () => {
                     if (childrenCollectionMenus.length === 0) return null;
                     return [
-                        { kind: "separator" },
-                        ...childrenCollectionMenus
+						...childrenCollectionMenus,
+						{ kind: "separator" },
                     ]
                 },
-                { kind: "separator" },
                 {
                     kind: "item",
                     text: "Add to new collection",
@@ -118,5 +133,10 @@ function tracksPlayNext(trackIds: number[]) {
 }
 
 function tracksAddToPlaylist(trackIds: number[]) {
-    Playlist.add(...trackIds);
+	if (Playlist.getNumTracks() == 0) {
+		Playlist.add(...trackIds);
+		Playlist.changeTrack(0);
+	} else {
+		Playlist.add(...trackIds);
+	}
 }

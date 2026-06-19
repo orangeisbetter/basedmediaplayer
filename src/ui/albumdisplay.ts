@@ -243,7 +243,7 @@ export class AlbumDisplay {
 
         Playlist.clear();
         Playlist.add(...trackIds);
-        Playlist.changeTrack(index);
+		Playlist.changeTrack(index);
         Player.play();
     }
 
@@ -272,7 +272,12 @@ export class AlbumDisplay {
     }
 
     private static addToPlaylistHandler() {
-        Playlist.add(...this.trackIds);
+		if (Playlist.getNumTracks() == 0) {
+			Playlist.add(...this.trackIds);
+			Playlist.changeTrack(0);
+		} else {
+			Playlist.add(...this.trackIds);
+		}
     }
 
     private static shufflePlayHandler() {

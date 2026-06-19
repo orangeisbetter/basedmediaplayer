@@ -1,11 +1,13 @@
-import { Player } from "./player.ts";
+import { Player, PlayerError } from "./player.ts";
 import { Playlist, PlaylistTrackChangeEventData } from "./playlist.ts";
 
 export class PlaybackController {
     private static autoplayEnabled: boolean;
+	private static consecutiveErrors: number = 0;
 
     static init() {
         Playlist.events.trackChange.addListener(this.onTrackChange);
+		Player.events.error.addListener(this.onError);
         this.autoplayOn();
     }
 
@@ -21,11 +23,22 @@ export class PlaybackController {
         this.autoplayEnabled = true;
     }
 
-    static onTrackChange = ({ id }: PlaylistTrackChangeEventData) => {
+	private static readonly onError = (error: PlayerError) => {
+		console.dir(error);
+		// Try the next track
+		Promise.resolve().then(() => {
+			if (Playlist.autoNext() !== null) {
+				Player.play();
+			}
+		});
+	}
+
+	// Player always follows playlist's current track
+	private static readonly onTrackChange = ({ id }: PlaylistTrackChangeEventData) => {
         Player.changeTrack(id);
     }
 
-    static onTrackFinished = () => {
+	private static readonly onTrackFinished = () => {
         if (Playlist.autoNext() !== null) {
             Player.play();
         }

@@ -279,7 +279,12 @@ export class ArtistDisplay {
 
     private static albumsAddToPlaylistHandler() {
         const trackIds = this.getAlbumsTracks();
-        Playlist.add(...trackIds);
+		if (Playlist.getNumTracks() == 0) {
+			Playlist.add(...trackIds);
+			Playlist.changeTrack(0);
+		} else {
+			Playlist.add(...trackIds);
+		}
     }
 
     private static albumsShufflePlayHandler() {
@@ -296,7 +301,12 @@ export class ArtistDisplay {
     }
 
     private static tracksAddToPlaylistHandler() {
-        Playlist.add(...this.trackIds);
+		if (Playlist.getNumTracks() == 0) {
+			Playlist.add(...this.trackIds);
+			Playlist.changeTrack(0);
+		} else {
+			Playlist.add(...this.trackIds);
+		}
     }
 
     private static tracksShufflePlayHandler() {
