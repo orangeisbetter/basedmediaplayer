@@ -1,12 +1,22 @@
-type Index = number;
+import { Keyboard } from "../keyboard.ts";
+
+interface ElementInfo {
+	element: HTMLElement;
+	index: number;
+}
 
 interface SelectableListOptions {
     items?: string;
+	getId?: (info: ElementInfo) => number;
 }
 
 export class SelectableList {
     private static lists = new Set<SelectableList>();
     private static active: SelectableList | null = null;
+
+	static init() {
+		Keyboard.register("escape", () => SelectableList.clearActive());
+	}
 
     static register(container: HTMLElement, opts: SelectableListOptions = {}) {
         const list = new SelectableList(container, opts);
@@ -31,6 +41,7 @@ export class SelectableList {
     private container: HTMLElement;
     private selector: string;
     private items: HTMLElement[] = [];
+	private getId?: (info: ElementInfo) => number;
 
     private selected = new Set<HTMLElement>();
     private anchor: HTMLElement | null = null;
@@ -40,11 +51,13 @@ export class SelectableList {
     private constructor(container: HTMLElement, opts: SelectableListOptions) {
         this.container = container;
         this.selector = opts.items ?? ':scope > *';
+		this.getId = opts.getId ?? (info => info.index);
 
         this.refreshItems();
 
         this.container.addEventListener('mousedown', this.onMouseDown);
         this.container.addEventListener('click', this.onClick);
+		this.container.addEventListener("keydown", this.onKeyDown);
 
         this.observer = new MutationObserver(this.onMutate);
         this.observer.observe(container, { childList: true });
@@ -53,14 +66,14 @@ export class SelectableList {
     /* ---------------- public API ---------------- */
 
     /**
-     * Gets the selected indices of the list.
-     * This function returns the indices in ascending order.
-     * @returns The selected indices of the list, in ascending order.
+     * Gets the current selection in the list.
+     * @returns The selected IDs of the list, in order of ascending index.
      */
-    getSelected(): Index[] {
+	getSelected(getId?: (info: ElementInfo) => number): number[] {
         return this.items
-            .map((el, i) => (this.selected.has(el) ? i : -1))
-            .filter(i => i !== -1);
+			.map((element, index) => ({ element, index }))
+			.filter(pair => this.selected.has(pair.element))
+			.map(pair => (getId ?? this.getId)?.(pair) ?? pair.index);
     }
 
     /**
@@ -92,12 +105,11 @@ export class SelectableList {
 
         for (const el of this.selected) {
             if (!next.includes(el)) {
-                el.classList.remove('selected');
                 this.selected.delete(el);
             }
         }
 
-        if (this.anchor && !next.includes(this.anchor)) {
+        if (this.anchor !== null && !next.includes(this.anchor)) {
             this.clearAnchor();
         }
 
@@ -150,6 +162,19 @@ export class SelectableList {
 
         e.preventDefault();
     };
+
+	private readonly onKeyDown = (e: KeyboardEvent) => {
+		const keyCode = Keyboard.getKeyCode(e);
+		if (keyCode === "ctrl+a") {
+			this.selectAll();
+			e.stopPropagation();
+			e.preventDefault();
+		} else if (keyCode === "escape") {
+			this.clear();
+			e.stopPropagation();
+			e.preventDefault();
+		}
+	}
 
     /* ---------------- selection ops ---------------- */
 

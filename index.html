@@ -43,7 +43,6 @@
         <symbol viewBox="0 0 24 24" id="icon-library-music"><path fill="currentColor" d="M4 6H2v14a2 2 0 0 0 2 2h14v-2H4M18 7h-3v5.5a2.5 2.5 0 0 1-2.5 2.5a2.5 2.5 0 0 1-2.5-2.5a2.5 2.5 0 0 1 2.5-2.5c.57 0 1.08.19 1.5.5V5h4m2-3H8a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2" /></symbol>
         <symbol viewBox="0 0 24 24" id="icon-album"><path fill="currentColor" d="M12 11a1 1 0 0 0-1 1a1 1 0 0 0 1 1a1 1 0 0 0 1-1a1 1 0 0 0-1-1m0 5.5c-2.5 0-4.5-2-4.5-4.5s2-4.5 4.5-4.5s4.5 2 4.5 4.5s-2 4.5-4.5 4.5M12 2A10 10 0 0 0 2 12a10 10 0 0 0 10 10a10 10 0 0 0 10-10A10 10 0 0 0 12 2" /></symbol>
 		<symbol viewBox="0 0 24 24" id="icon-error"><path fill="currentColor" d="M13 13h-2V7h2m0 10h-2v-2h2M12 2A10 10 0 0 0 2 12a10 10 0 0 0 10 10a10 10 0 0 0 10-10A10 10 0 0 0 12 2" /></symbol>
-
     </svg>
     <template id="template_album">
         <div class="album">
@@ -296,7 +295,7 @@
                 <option value="album_name">Album name</option>
             </select>
         </div>
-        <input type="search" id="search_bar" placeholder="Start typing to search...">
+        <input type="search" id="search-bar" placeholder="Start typing to search...">
     </header>
     <div class="main-view">
         <div class="browser-view">
@@ -310,7 +309,7 @@
                             <th>Tracks</th>
                         </tr>
                     </thead>
-                    <tbody class="selectable-list"></tbody>
+                    <tbody class="selectable-list" tabindex="0"></tbody>
                 </table>
             </div>
             <div class="tracks-list">
@@ -325,7 +324,7 @@
                             <th width="200">Artist</th>
                         </tr>
                     </thead>
-                    <tbody class="selectable-list">
+                    <tbody class="selectable-list" tabindex="0">
                     </tbody>
                 </table>
             </div>
@@ -362,7 +361,7 @@
                             <th>Composer</th>
                         </tr>
                     </thead>
-                    <tbody class="selectable-list">
+                    <tbody class="selectable-list" tabindex="0">
                     </tbody>
                 </table>
             </div>
@@ -408,7 +407,7 @@
                                 <th>Composer</th>
                             </tr>
                         </thead>
-                        <tbody class="selectable-list">
+                        <tbody class="selectable-list" tabindex="0">
                         </tbody>
                     </table>
                 </div>
@@ -426,7 +425,7 @@
             <button class="clear" id="playlist_clear_btn">Clear</button>
             <button class="shuffle" id="playlist_clear_btn">Shuffle</button>
         </div>
-        <div class="playlist-list selectable-list" id="playlist_list"></div>
+        <div class="playlist-list selectable-list" id="playlist_list" tabindex="0"></div>
         <div class="playlist-info">0 tracks, duration: 0:00</div>
     </div>
     <div class="player">

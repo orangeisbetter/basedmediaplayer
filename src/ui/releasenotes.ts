@@ -1,5 +1,6 @@
 interface ReleaseNotes {
     version: string,
+	date?: string,
     features?: string[],
     changes?: string[],
     bug_fixes?: string[]
@@ -39,6 +40,11 @@ function releaseNotesEntry(versionNotes: ReleaseNotes) {
     heading.textContent = `Version ${versionNotes.version}`;
 
     entry.appendChild(heading);
+
+	const date = document.createElement("small");
+	date.textContent = versionNotes.date ? "Released " + new Date(versionNotes.date).toLocaleDateString(undefined, { dateStyle: "medium", timeZone: "UTC" }) : "Unreleased";
+
+	entry.appendChild(date);
 
     if (versionNotes.features && versionNotes.features.length > 0) {
         const featuresHeading = document.createElement("h4");

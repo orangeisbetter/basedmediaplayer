@@ -4,12 +4,15 @@ export function createCollection(parent: Collection | null): Promise<Collection 
     return new Promise(resolve => {
         const dialog = document.querySelector<HTMLDialogElement>("#create-collection-dialog")!;
         const form = dialog.querySelector("form")!;
+		const nameInput = form.elements.namedItem("name") as HTMLInputElement;
+
+		nameInput.value = "";
 
         let submitted = false;
 
         const submit = () => {
             submitted = true;
-            const name = (form.elements.namedItem("name") as HTMLInputElement).value.trim();
+            const name = nameInput.value.trim();
             if (parent === null) {
                 resolve(Collection.createRootCollection(name));
             } else {

@@ -22,9 +22,9 @@ import { Album } from "./album.ts";
 import { Track } from "./track.ts";
 import { Artist } from "./artist.ts";
 import { StylesEditor } from "./ui/styleseditor.ts";
+import { Keyboard } from "./keyboard.ts";
 
 declare const track_list: HTMLDivElement;
-declare const search_bar: HTMLInputElement;
 
 let db: IDBPDatabase;
 
@@ -108,7 +108,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const rescan = await initDB();
 
+	Keyboard.init();
     ResizablePanels.init();
+	SelectableList.init();
 
     document.addEventListener('load', (e) => {
         if (!(e.target instanceof HTMLImageElement)) return;
@@ -134,20 +136,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     PlayerView.init(document.querySelector(".player")!);
 
     getVersion().then(version => document.querySelector(".version")!.textContent = version);
-
-    document.addEventListener("keydown", e => {
-        if (e.key === "Escape") {
-            e.preventDefault();
-            SelectableList.clearActive();
-        } else if (e.ctrlKey) {
-            if (e.key === "a") {
-                e.preventDefault();
-                SelectableList.selectAll();
-            }
-        } else if (e.key.length === 1 && e.key !== " ") {
-            search_bar.focus();
-        }
-    });
 
     Library.loadLibrary(db, rescan).then(() => {
         BreadcrumbsView.init();

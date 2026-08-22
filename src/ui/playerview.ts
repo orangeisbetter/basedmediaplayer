@@ -1,5 +1,6 @@
 import { Album } from "../album.ts";
 import { Artist } from "../artist.ts";
+import { Keyboard } from "../keyboard.ts";
 import { MusicBrowser } from "../musicbrowser.ts";
 import { PlaybackController } from "../playbackcontroller.ts";
 import { Player } from "../player.ts";
@@ -37,6 +38,7 @@ export class PlayerView {
 	private static noLyricsLabel: HTMLElement;
 
     private static trackId: number | null = null;
+	private static playable: boolean = false;
 
     constructor() {
         throw Error("This static class cannot be instantiated.");
@@ -72,6 +74,8 @@ export class PlayerView {
         this.playPauseButton.addEventListener("click", this.playPauseButtonHandler);
         this.skipPreviousButton.addEventListener("click", () => PlaybackController.skipPreviousAndPlay());
         this.skipNextButton.addEventListener("click", () => PlaybackController.skipNextAndPlay());
+
+		Keyboard.register(" ", this.playPauseButtonHandler);
 
         const albumClick = function () {
             const track = Player.getCurrentTrack();
@@ -273,6 +277,7 @@ export class PlayerView {
     }
 
     private static playPauseButtonHandler() {
+		if (!PlayerView.playable) return;
         if (Player.isPlaying()) {
             Player.pause();
         } else {
@@ -360,7 +365,9 @@ export class PlayerView {
         if (id === null) {
             this.trackProgressBar.classList.add("disabled");
 
+			this.playable = false;
             this.playPauseButton.disabled = true;
+
             this.trackTitleLabel.textContent = "Nothing is playing";
             this.trackTimeLabel.textContent = "";
 
@@ -382,7 +389,9 @@ export class PlayerView {
 
         this.trackProgressBar.classList.remove("disabled");
 
+		this.playable = true;
         this.playPauseButton.disabled = false;
+
         this.trackTitleLabel.textContent = track.title;
         this.trackTimeLabel.textContent = `${convertTime(0)} / ${convertTime(track.duration)}`;
 

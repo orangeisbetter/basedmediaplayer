@@ -270,8 +270,7 @@ export class Collection {
     getAlbumIds(): Set<number> {
         const albums = new Set<number>();
         for (const id of this.getTrackIds()) {
-            const track = Track.byID(id);
-            if (!track) continue;
+			const track = Track.byID(id)!;
             albums.add(track.albumId);
         }
         return albums;

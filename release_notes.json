@@ -1,6 +1,7 @@
 [
     {
         "version": "0.1.0",
+		"date": "2026-02-05",
         "features": [
             "Implemented playlist shuffling",
             "Added \"Shuffle play\" button to album view",
@@ -20,6 +21,7 @@
     },
     {
         "version": "0.1.1",
+		"date": "2026-02-07",
         "bug_fixes": [
             "Reworked the storage, retrieval, and structure of collections",
             "Fixed a bug where an album with an id of 0 was not able to play",
@@ -28,6 +30,7 @@
     },
     {
         "version": "0.2.0",
+		"date": "2026-02-11",
         "features": [
             "Added \"About\" dialog",
             "Redesigned Release notes dialog to feature release notes from multiple versions",
@@ -46,6 +49,7 @@
     },
     {
         "version": "0.3.0",
+		"date": "2026-02-26",
         "features": [
             "Made artists a first-class data type",
             "Added artists view to browser",
@@ -66,6 +70,7 @@
     },
     {
         "version": "0.3.1",
+		"date": "2026-03-01",
         "features": [
             "Added breadcrumbs to the browser header for hierarchical navigation",
             "Utilized browser history to be able to return to previously visited browsing contexts",
@@ -80,6 +85,7 @@
     },
     {
         "version": "0.3.2",
+		"date": "2026-03-13",
         "features": [
             "Added non-persistent resizing for the playlist and sidebar panels"
         ],
@@ -99,6 +105,7 @@
     },
     {
         "version": "0.3.3",
+		"date": "2026-03-17",
         "features": [
             "Added artist view",
             "Made all links to artists navigate to the appropriate artist view, if available",
@@ -114,6 +121,7 @@
     },
     {
         "version": "0.3.4",
+		"date": "2026-03-21",
         "features": [
             "Added support for adding tracks to and removing tracks from collections",
             "Added support for creating collections when adding tracks to them",
@@ -132,6 +140,7 @@
     },
     {
         "version": "0.4.0",
+		"date": "2026-03-24",
         "features": [
             "Created cassette recorder tool"
         ],
@@ -144,6 +153,7 @@
 	},
 	{
 		"version": "0.5.0",
+		"date": "2026-06-07",
 		"features": [
 			"Updated the music library scanning logic so that it re-scans the library and updates upon every page load",
 			"Added release year to album display if the tracks in the album have a year set",
@@ -162,6 +172,7 @@
 	},
 	{
 		"version": "0.5.1",
+		"date": "2026-06-09",
 		"features": [
 			"Added custom themes and presets, including the highly awaited dark mode",
 			"Added selection and functionality similar to the album view tracks list to the music browser track view"
@@ -176,6 +187,7 @@
 	},
 	{
 		"version": "0.5.2",
+		"date": "2026-06-18",
 		"features": [
 			"Implemented proper error handling for track loading and playback"
 		],
@@ -188,6 +200,20 @@
 		"bug_fixes": [
 			"Fixed an issue where the first track would be loaded unnecessarily when adding to an empty playlist in a 'play all' operation, only to be immediately replaced",
 			"Fixed a bug where removing a track would not also remove it from any collections it was a member of, which would lead to bugged collections"
+		]
+	},
+	{
+		"version": "0.5.3",
+		"date": "2026-08-22",
+		"features": [
+			"Made the artists view of the music browser function like all other selectable lists",
+			"Implemented search functionality on all music browser views (albums, artists, tracks)",
+			"Added release dates to the release notes"
+		],
+		"bug_fixes": [
+			"Globalized keyboard event handlers for keyboard shortcuts",
+			"Added proper outlining of all keyboard-focusable elements to enhance keyboard navigation",
+			"Made some changes to the selectable list system"
 		]
 	}
 ]
