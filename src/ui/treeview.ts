@@ -78,7 +78,7 @@ export class TreeViewChildNode extends TreeViewNode {
 
         const icon = this.element.querySelector("svg")!;
         if (options.iconName === undefined) {
-            icon.parentElement!.remove();
+            icon.remove();
         } else {
             changeIcon(icon, options.iconName);
         }

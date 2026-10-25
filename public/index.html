@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="media-src 'self' blob:;">
+    <meta http-equiv="Content-Security-Policy" content="media-src 'self' blob: http: https:;">
     <title>Based Media Player</title>
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
@@ -43,13 +43,14 @@
         <symbol viewBox="0 0 24 24" id="icon-library-music"><path fill="currentColor" d="M4 6H2v14a2 2 0 0 0 2 2h14v-2H4M18 7h-3v5.5a2.5 2.5 0 0 1-2.5 2.5a2.5 2.5 0 0 1-2.5-2.5a2.5 2.5 0 0 1 2.5-2.5c.57 0 1.08.19 1.5.5V5h4m2-3H8a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2" /></symbol>
         <symbol viewBox="0 0 24 24" id="icon-album"><path fill="currentColor" d="M12 11a1 1 0 0 0-1 1a1 1 0 0 0 1 1a1 1 0 0 0 1-1a1 1 0 0 0-1-1m0 5.5c-2.5 0-4.5-2-4.5-4.5s2-4.5 4.5-4.5s4.5 2 4.5 4.5s-2 4.5-4.5 4.5M12 2A10 10 0 0 0 2 12a10 10 0 0 0 10 10a10 10 0 0 0 10-10A10 10 0 0 0 12 2" /></symbol>
 		<symbol viewBox="0 0 24 24" id="icon-error"><path fill="currentColor" d="M13 13h-2V7h2m0 10h-2v-2h2M12 2A10 10 0 0 0 2 12a10 10 0 0 0 10 10a10 10 0 0 0 10-10A10 10 0 0 0 12 2" /></symbol>
+		<symbol viewBox="0 0 24 24" id="icon-radio"><path fill="currentColor" d="M20 6a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8c0-.85.53-1.58 1.28-1.87L15.71 1l.76 1.83L8.83 6zm0 2H4v4h12v-2h2v2h2zM7 14a3 3 0 0 0-3 3a3 3 0 0 0 3 3a3 3 0 0 0 3-3a3 3 0 0 0-3-3" /></symbol>
     </svg>
     <template id="template_album">
         <div class="album">
             <div class="cover-box">
                 <img class="cover">
             </div>
-            <a class="album-name ellipsis"></a>
+            <span class="album-name ellipsis"></span>
             <a class="album-artist ellipsis"></a>
         </div>
     </template>
@@ -299,7 +300,7 @@
     </header>
     <div class="main-view">
         <div class="browser-view">
-            <div class="albums-list"></div>
+            <div class="albums-list selectable-list"></div>
             <div class="artists-list">
                 <table>
                     <thead>

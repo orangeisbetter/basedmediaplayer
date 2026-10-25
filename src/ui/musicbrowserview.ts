@@ -19,7 +19,7 @@ declare const template_artist_list_item: HTMLTemplateElement;
 
 type AlbumClickHandler = (albumId: number, collection: Collection) => void;
 type BrowserMode = "artists" | "albums" | "tracks";
-type AlbumSortingMode = "album_name" | "album_artist";
+type AlbumSortingMode = "album_name" | "album_artist" | "date";
 type TrackSortingMode = string;
 
 const DEFAULT_ALBUM_NAME = "Unknown album";
@@ -31,6 +31,8 @@ export class MusicBrowserView {
     private static rootElement: HTMLDivElement;
 
     private static albumsList: HTMLDivElement;
+	private static albumIds: number[] = [];
+	private static albumsSelList: SelectableList;
 
     private static artistsList: HTMLTableSectionElement;
 	private static artistIds: number[] = [];
@@ -65,6 +67,7 @@ export class MusicBrowserView {
         this.rootElement = element;
 
         this.albumsList = this.rootElement.querySelector(".albums-list")!;
+		this.albumsSelList = SelectableList.register(this.albumsList);
 
         this.artistsList = this.rootElement.querySelector(".artists-list tbody")!;
         this.artistsSelList = SelectableList.register(this.artistsList);
@@ -113,6 +116,24 @@ export class MusicBrowserView {
 				]
 			}
 		});
+
+		MenuSystem.setContextMenu(this.albumsList, () => {
+			const selectedIds = this.albumsSelList.getSelected(info => this.albumIds[info.index]);
+			if (selectedIds.length === 0) return null;
+			return {
+				menuitems: [
+					{
+						kind: "item",
+						text: "Open",
+						default: true,
+						click: selectedIds.length === 1 ? () => MusicBrowser.navigate({
+							collection: MusicBrowser.collection,
+							albumId: selectedIds[0]
+						}) : undefined
+					}
+				]
+			}
+		})
 
         this.modeContainer = document.querySelector("header #main_view_select")!;
         this.modeSelect = this.modeContainer.querySelector("select, :scope:where(select)")!;
@@ -201,6 +222,7 @@ export class MusicBrowserView {
                 this.sortSelect.options.length = 0;
                 this.sortSelect.options.add(new Option("Album artist", "album_artist"));
                 this.sortSelect.options.add(new Option("Album name", "album_name"));
+				this.sortSelect.options.add(new Option("Release date", "date"));
                 this.sortSelect.value = this.albumSortMode;
                 break;
             case "tracks":
@@ -267,7 +289,23 @@ export class MusicBrowserView {
                     new CompareEntry(album => album.id, numberCompare)
 				]));
                 break;
+			case "date":
+				albums.sort(compareStack([
+					new CompareEntry(album => {
+						const temp = album.trackIds
+							.map(trackId => {
+								const track = Track.byID(trackId)!
+								return track.year;
+							})
+							.filter(year => year !== undefined)
+							.reduce((prev, curr) => curr < prev ? curr : prev, Infinity);
+						return temp !== Infinity ? temp : undefined;
+					}, compareUndefinedLast(numberCompare))
+				]));
+				break;
         }
+
+		this.albumIds = albums.map(album => album.id);
 
 		for (const album of albums) {
 			const existing = this.albumsList.querySelector(`[data-album-id="${album.id}"]`);
@@ -296,18 +334,15 @@ export class MusicBrowserView {
 
         const cover: HTMLImageElement = clone.querySelector(".cover")!;
         cover.src = album.getCoverURL();
-        cover.addEventListener("click", albumClick);
 
         const albumName: HTMLElement = clone.querySelector(".album-name")!;
         albumName.textContent = album.name ?? DEFAULT_ALBUM_NAME;
         albumName.title = album.name ?? DEFAULT_ALBUM_NAME;
-        albumName.addEventListener("click", albumClick);
 
         const albumArtist: HTMLElement = clone.querySelector(".album-artist")!;
         const albumArtistName = album.getArtistName() ?? DEFAULT_ARTIST_NAME;
         albumArtist.textContent = albumArtistName;
         albumArtist.title = albumArtistName;
-
         albumArtist.addEventListener("click", () => MusicBrowser.navigate({
             collection: MusicBrowser.collection,
             artistId: album.artist

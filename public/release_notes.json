@@ -215,5 +215,16 @@
 			"Added proper outlining of all keyboard-focusable elements to enhance keyboard navigation",
 			"Made some changes to the selectable list system"
 		]
+	},
+	{
+		"version": "0.5.4",
+		"date": "2026-10-24",
+		"features": [
+			"Added a new \"Release date\" sorting mode in the Albums view",
+			"Changed albums view selection mode to function like tracks and artists views, with selectable lists and context menus"
+		],
+		"bug_fixes": [
+			"Fixed a bug with unused code in the tree view where an item with no icon would break the tree view"
+		]
 	}
 ]

@@ -328,16 +328,23 @@ header {
         display: contents;
 
         .albums-list {
+			--album-row-gap: 16px;
+			--album-col-gap: 16px;
+
             overflow-y: auto;
             display: flex;
             flex-direction: row;
             flex-wrap: wrap;
             align-content: flex-start;
-            gap: 16px;
+			row-gap: var(--album-row-gap);
+			column-gap: var(--album-col-gap);
             padding: 16px;
 
             .album {
-                width: var(--album-cover-size-small);
+				margin-inline: calc(-1 * var(--album-col-gap) / 2);
+				margin-block: calc(-1 * var(--album-row-gap) / 2);
+				padding: calc(var(--album-row-gap) / 2) calc(var(--album-col-gap) / 2);
+                width: calc(var(--album-cover-size-small) + var(--album-col-gap));
 
                 .cover-box {
                     width: var(--album-cover-size-small);
@@ -364,6 +371,7 @@ header {
                 }
 
                 .album-name {
+					cursor: default;
                     font-weight: bold;
                 }
             }
