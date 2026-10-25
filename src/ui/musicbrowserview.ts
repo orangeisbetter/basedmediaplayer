@@ -126,10 +126,7 @@ export class MusicBrowserView {
 						kind: "item",
 						text: "Open",
 						default: true,
-						click: selectedIds.length === 1 ? () => MusicBrowser.navigate({
-							collection: MusicBrowser.collection,
-							albumId: selectedIds[0]
-						}) : undefined
+						click: selectedIds.length === 1 ? () => MusicBrowser.modify(state => state.albumId = selectedIds[0]) : undefined
 					}
 				]
 			}
@@ -327,10 +324,6 @@ export class MusicBrowserView {
     private static getAlbumElement(album: Album): DocumentFragment {
         const clone = document.importNode(template_album.content, true);
 		clone.firstElementChild!.setAttribute("data-album-id", `${album.id}`);
-
-        const albumClick = function () {
-            MusicBrowser.modify(state => state.albumId = album.id);
-        }
 
         const cover: HTMLImageElement = clone.querySelector(".cover")!;
         cover.src = album.getCoverURL();
