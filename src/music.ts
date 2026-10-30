@@ -91,11 +91,11 @@ async function initDB(): Promise<{ db: IDBPDatabase, rescan: boolean }> {
 
 				stationsStore.put(RadioStation.create("92.9 KAT FM", "https://us9.maindigitalstream.com/ssl/katf"));
 				stationsStore.put(RadioStation.create("93.3 KIOA", "https://live.amperwave.net/manifest/saga-kioafmaac-hlsc1.m3u8"));
-				stationsStore.put(RadioStation.create("IPR Classical", "http://classical-stream.iowapublicradio.org/Classical.mp3"));
-				stationsStore.put(RadioStation.create("IPR News", "http://news-stream.iowapublicradio.org/News.mp3"));
-				stationsStore.put(RadioStation.create("IPR Studio One", "http://studioone-stream.iowapublicradio.org/StudioOne.mp3"));
-				stationsStore.put(RadioStation.create("Jazz24", "http://knkx-live-a.edge.audiocdn.com/6285_128k"));
-				stationsStore.put(RadioStation.create("TruckersFM", "http://radio.truckers.fm"));
+				stationsStore.put(RadioStation.create("IPR Classical", "https://classical-stream.iowapublicradio.org/Classical.mp3"));
+				stationsStore.put(RadioStation.create("IPR News", "https://news-stream.iowapublicradio.org/News.mp3"));
+				stationsStore.put(RadioStation.create("IPR Studio One", "https://studioone-stream.iowapublicradio.org/StudioOne.mp3"));
+				stationsStore.put(RadioStation.create("Jazz24", "https://knkx-live-a.edge.audiocdn.com/6285_128k"));
+				stationsStore.put(RadioStation.create("TruckersFM", "https://radio.truckers.fm"));
 			}
         }
     });

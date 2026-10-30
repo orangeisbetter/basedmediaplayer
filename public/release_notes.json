@@ -242,5 +242,12 @@
 			"Removed automatic library re-scan upon loading the page",
 			"Upgrade music-metadata package to latest version"
 		]
+	},
+	{
+		"version": "0.6.1",
+		"date": "2026-10-29",
+		"bug_fixes": [
+			"Changed default radio stations to use https instead of plain http to remove \"not secure\" banner"
+		]
 	}
 ]
