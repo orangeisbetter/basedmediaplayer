@@ -23,10 +23,10 @@ import { Track } from "./track.ts";
 import { Artist } from "./artist.ts";
 import { StylesEditor } from "./ui/styleseditor.ts";
 import { Keyboard } from "./keyboard.ts";
+import { RadioStationsEditor } from "./ui/radiostationsview.ts";
+import { RadioStation } from "./radiostation.ts";
 
 declare const track_list: HTMLDivElement;
-
-let db: IDBPDatabase;
 
 // Service worker
 if ('serviceWorker' in navigator) {
@@ -36,9 +36,9 @@ if ('serviceWorker' in navigator) {
     })
 }
 
-async function initDB(): Promise<boolean> {
+async function initDB(): Promise<{ db: IDBPDatabase, rescan: boolean }> {
     let rescan = false;
-    db = await openDB("music-library", 5, {
+    const db = await openDB("music-library", 6, {
         upgrade(db, oldVersion, _newVersion, transaction) {
             if (oldVersion < 1) {
                 db.createObjectStore(Album.STORE_NAME, { keyPath: "id" });
@@ -46,6 +46,9 @@ async function initDB(): Promise<boolean> {
 
                 const configStore = db.createObjectStore("config");
                 configStore.put(0, "volume");
+
+				// Library rescan necessary
+				rescan = true;
             } else if (oldVersion == 1) {
                 db.deleteObjectStore("library");
             }
@@ -82,10 +85,22 @@ async function initDB(): Promise<boolean> {
                 db.createObjectStore(Artist.STORE_NAME, { keyPath: "id" });
                 db.createObjectStore(Collection.STORE_NAME, { keyPath: "id" });
             }
+
+			if (oldVersion < 6) {
+				const stationsStore = db.createObjectStore(RadioStation.STORE_NAME, { keyPath: "id" });
+
+				stationsStore.put(RadioStation.create("92.9 KAT FM", "https://us9.maindigitalstream.com/ssl/katf"));
+				stationsStore.put(RadioStation.create("93.3 KIOA", "https://live.amperwave.net/manifest/saga-kioafmaac-hlsc1.m3u8"));
+				stationsStore.put(RadioStation.create("IPR Classical", "http://classical-stream.iowapublicradio.org/Classical.mp3"));
+				stationsStore.put(RadioStation.create("IPR News", "http://news-stream.iowapublicradio.org/News.mp3"));
+				stationsStore.put(RadioStation.create("IPR Studio One", "http://studioone-stream.iowapublicradio.org/StudioOne.mp3"));
+				stationsStore.put(RadioStation.create("Jazz24", "http://knkx-live-a.edge.audiocdn.com/6285_128k"));
+				stationsStore.put(RadioStation.create("TruckersFM", "http://radio.truckers.fm"));
+			}
         }
     });
 
-    return rescan;
+    return { db, rescan };
 }
 
 // async function getAnonymousUsageConsent() {
@@ -106,12 +121,6 @@ async function initDB(): Promise<boolean> {
 document.addEventListener("DOMContentLoaded", async () => {
     document.title = "Nothing is playing";
 
-    const rescan = await initDB();
-
-	Keyboard.init();
-    ResizablePanels.init();
-	SelectableList.init();
-
     document.addEventListener('load', (e) => {
         if (!(e.target instanceof HTMLImageElement)) return;
         const img = e.target;
@@ -119,29 +128,66 @@ document.addEventListener("DOMContentLoaded", async () => {
         img.style.setProperty('--aspect', String(aspect));
     }, true);
 
+    getVersion().then(version => document.querySelector(".version")!.textContent = version);
+
     // getAnonymousUsageConsent();
 
+	// Start this right away since it might take a while (usually does)
+    const dbPromise = initDB();
+
+	// ====================
+	// Initialize interface
+	// ====================
+
+	Keyboard.init();
+    ResizablePanels.init();
+	SelectableList.init();
+
+	// Menus & dialogs
     MenuSystem.init();
     MenuBar.init(document.querySelector("#menubar")!);
     CassetteRecorderView.init();
 	StylesEditor.init();
-    MusicBrowser.init();
-
-    PlaybackController.init();
-
-    AlbumDisplay.init(track_list);
-    ArtistDisplay.init();
+	dbPromise.then(({ db }) => RadioStationsEditor.init(db));
 
     PlaylistView.init();
     PlayerView.init(document.querySelector(".player")!);
+	
+	// Browser
+    MusicBrowser.init();
+	dbPromise.then(({ db }) => MusicBrowserView.init(db, document.querySelector(".browser-view")!));
+    AlbumDisplay.init(track_list);
+    ArtistDisplay.init();
+	BreadcrumbsView.init();
+	LibraryTreeView.init(document.querySelector("#sidebar")!);
 
-    getVersion().then(version => document.querySelector(".version")!.textContent = version);
+	// =======================
+	// Initialize audio system
+	// =======================
 
-    Library.loadLibrary(db, rescan).then(() => {
-        BreadcrumbsView.init();
-        MusicBrowserView.init(db, document.querySelector(".browser-view")!);
-        LibraryTreeView.init(document.querySelector("#sidebar")!);
-    });
+	const playerPromise = dbPromise.then(({ db }) => Player.init(db));
+    PlaybackController.init();
 
-    await Player.init(db);
+	// ========================
+	// Initialize music library
+	// ========================
+
+	const stationsPromise = dbPromise.then(({ db }) => {
+		return RadioStation.loadAll(db).then(() => {
+			LibraryTreeView.updateRadioStations(Array.from(RadioStation.stations.values()));
+		});
+	});
+
+	const libraryPromise = dbPromise.then(({ db, rescan }) => {
+		return Library.loadLibrary(db, rescan).then(() => {
+			MusicBrowserView.update();
+		});
+	});
+
+	// Round 'em all up here
+	await Promise.all([
+		playerPromise,
+		stationsPromise,
+		libraryPromise
+	]);
 });

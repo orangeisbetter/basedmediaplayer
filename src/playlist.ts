@@ -1,11 +1,12 @@
 import { convertTime } from "./time.ts";
 import { Track } from "./track.ts";
 import { Emitter } from "./emitter.ts";
+import { Stream } from "./stream.ts";
 
-export type PlaylistAddEventData = number[];
+export type PlaylistAddEventData = PlaylistItem[];
 export type PlaylistInsertEventData = {
     /** The tracks that were inserted. */
-    tracks: number[];
+    items: PlaylistItem[];
     /** The index the tracks were inserted at. */
     to: number;
 };
@@ -29,8 +30,8 @@ export type PlaylistShuffleEventData = {
 export type PlaylistTrackChangeEventData = {
     /** The current track index. */
     index: number | null;
-    /** The ID of the current track. */
-    id: number | null;
+    /** The current item */
+    item: PlaylistItem | null;
 };
 export type PlaylistNumTracksChangeEventData = {
     /** The number of tracks in the playlist. */
@@ -48,6 +49,29 @@ export enum LoopMode {
     Playlist,
 }
 
+export enum PlaylistItemType {
+	TRACK,
+	STREAM,
+};
+
+export type PlaylistItem = {
+	type: PlaylistItemType.TRACK
+	trackId: number,
+} | {
+	type: PlaylistItemType.STREAM,
+	stream: Stream
+};
+
+export const PlaylistItem = {
+	createFromTrack(trackId: number): PlaylistItem {
+		return { type: PlaylistItemType.TRACK, trackId };
+	},
+
+	createFromStream(stream: Stream): PlaylistItem {
+		return { type: PlaylistItemType.STREAM, stream };
+	}
+}
+
 /**
  * A static class for the playlist.
  * 
@@ -57,8 +81,8 @@ export enum LoopMode {
  * Looping is also managed in this class. Looping logic is implemented in {@link Playlist.autoNext}.
  */
 export class Playlist {
-    private static list: number[] = [];
-    private static currentTrackIdx: number = 0;
+    private static list: PlaylistItem[] = [];
+    private static currentItemIdx: number = 0;
 
     /** The loop mode of the playlist. */
     static loopMode: LoopMode = LoopMode.None;
@@ -90,54 +114,38 @@ export class Playlist {
      * Adds a list of track IDs to the end of the playlist.
      * @param trackIds The IDs of the tracks to add.
      */
-    static add(...trackIds: number[]) {
-        // let madeValid = false;
-        // if (Playlist.isEmpty() && trackIds.length > 0) {
-            // madeValid = true;
-            // Playlist.currentTrackIdx = 0;
-        // }
-        Playlist.list.push(...trackIds);
-        Playlist.events.add.emit(trackIds);
-        if (trackIds.length > 0) {
+    static add(...items: PlaylistItem[]) {
+		Playlist.list.push(...items);
+        Playlist.events.add.emit(items);
+        if (items.length > 0) {
             Playlist.events.numTracksChange.emit({ number: Playlist.getNumTracks(), duration: Playlist.getDuration() });
         }
-        // if (madeValid) {
-        //     Playlist.events.trackChange.emit({ index: Playlist.currentTrackIdx, id: Playlist.list[Playlist.currentTrackIdx] });
-        // }
     }
 
     /**
      * Inserts a list of track IDs into the playlist at a particular index. 
      * @param index The index to insert tracks at. The tracks will be inserted "in-between" the
      * track at this index, and the one before it.
-     * @param trackIds The IDs of the tracks to insert.
+     * @param items The IDs of the tracks to insert.
      */
-    static insert(index: number, ...trackIds: number[]) {
-        // let madeValid = false;
-        // if (Playlist.isEmpty() && trackIds.length > 0) {
-        //     madeValid = true;
-        //     Playlist.currentTrackIdx = 0;
-        // }
-        if (index <= Playlist.currentTrackIdx) {
-            Playlist.currentTrackIdx += trackIds.length;
+    static insert(index: number, ...items: PlaylistItem[]) {
+        if (index <= Playlist.currentItemIdx) {
+            Playlist.currentItemIdx += items.length;
         }
-        Playlist.list.splice(index, 0, ...trackIds);
-        Playlist.events.insert.emit({ tracks: trackIds, to: index });
-        if (trackIds.length > 0) {
+        Playlist.list.splice(index, 0, ...items);
+        Playlist.events.insert.emit({ items: items, to: index });
+        if (items.length > 0) {
             Playlist.events.numTracksChange.emit({ number: Playlist.getNumTracks(), duration: Playlist.getDuration() });
         }
-        // if (madeValid) {
-        //     Playlist.events.trackChange.emit({ index: Playlist.currentTrackIdx, id: Playlist.list[Playlist.currentTrackIdx] });
-        // }
     }
 
     /**
      * Similar to {@link Playlist.insert}, except insertion happens after the current
      * track.
-     * @param trackIds The IDs of the tracks to insert.
+     * @param items The IDs of the tracks to insert.
      */
-    static insertNext(...trackIds: number[]) {
-        Playlist.insert(Playlist.currentTrackIdx + 1, ...trackIds);
+    static insertNext(...items: PlaylistItem[]) {
+        Playlist.insert(Playlist.currentItemIdx + 1, ...items);
     }
 
     /**
@@ -149,12 +157,12 @@ export class Playlist {
         let trackChange = false;
         for (const i of trackIndices) {
             Playlist.list.splice(i, 1);
-            if (i < Playlist.currentTrackIdx) {
-                Playlist.currentTrackIdx--;
-            } else if (i == Playlist.currentTrackIdx) {
+            if (i < Playlist.currentItemIdx) {
+                Playlist.currentItemIdx--;
+            } else if (i == Playlist.currentItemIdx) {
                 trackChange = true;
-                if (Playlist.currentTrackIdx >= Playlist.list.length) Playlist.currentTrackIdx = Playlist.list.length - 1;
-                if (Playlist.currentTrackIdx < 0) Playlist.currentTrackIdx = 0;
+                if (Playlist.currentItemIdx >= Playlist.list.length) Playlist.currentItemIdx = Playlist.list.length - 1;
+                if (Playlist.currentItemIdx < 0) Playlist.currentItemIdx = 0;
             }
         }
         Playlist.events.remove.emit(trackIndices);
@@ -163,9 +171,9 @@ export class Playlist {
         }
         if (trackChange) {
             if (Playlist.list.length == 0) {
-                Playlist.events.trackChange.emit({ index: null, id: null });
+                Playlist.events.trackChange.emit({ index: null, item: null });
             } else {
-                Playlist.events.trackChange.emit({ index: Playlist.currentTrackIdx, id: Playlist.list[Playlist.currentTrackIdx] });
+                Playlist.events.trackChange.emit({ index: Playlist.currentItemIdx, item: Playlist.list[Playlist.currentItemIdx] });
             }
         }
     }
@@ -177,7 +185,7 @@ export class Playlist {
         const changed = Playlist.list.length > 0;
         Playlist.list.length = 0;
         Playlist.events.clear.emit();
-        Playlist.events.trackChange.emit({ index: null, id: null });
+        Playlist.events.trackChange.emit({ index: null, item: null });
         if (changed) {
             Playlist.events.numTracksChange.emit({ number: Playlist.getNumTracks(), duration: Playlist.getDuration() });
         }
@@ -198,13 +206,13 @@ export class Playlist {
 
         // Find where the current track moved to, since it's too complicated to do this in the above loop
         for (let i = 0; i < indices.length; i++) {
-            if (indices[i] == Playlist.currentTrackIdx) {
-                Playlist.currentTrackIdx = i;
+            if (indices[i] == Playlist.currentItemIdx) {
+                Playlist.currentItemIdx = i;
                 break;
             }
         }
 
-        Playlist.events.shuffle.emit({ mapping: indices, current: Playlist.currentTrackIdx });
+        Playlist.events.shuffle.emit({ mapping: indices, current: Playlist.currentItemIdx });
     }
 
     /**
@@ -219,7 +227,7 @@ export class Playlist {
         // Sort in descending order
         trackIndices.sort((a, b) => b - a);
         // Does the current track get moved?
-        const movedIndex = trackIndices.length - 1 - trackIndices.findIndex(value => value === Playlist.currentTrackIdx);
+        const movedIndex = trackIndices.length - 1 - trackIndices.findIndex(value => value === Playlist.currentItemIdx);
 
         const indexTransform = Playlist.list.map((_, index) => index);
 
@@ -230,24 +238,24 @@ export class Playlist {
             if (removalIndex < insertionIndex) {
                 insertionIndex--;
             }
-            if (movedIndex === trackIndices.length && removalIndex < Playlist.currentTrackIdx) {
-                Playlist.currentTrackIdx--;
+            if (movedIndex === trackIndices.length && removalIndex < Playlist.currentItemIdx) {
+                Playlist.currentItemIdx--;
             }
             removed.push(...Playlist.list.splice(removalIndex, 1));
             removedIndices.push(...indexTransform.splice(removalIndex, 1));
         }
         Playlist.list.splice(insertionIndex, 0, ...removed.reverse());
         indexTransform.splice(insertionIndex, 0, ...removedIndices.reverse());
-        if (movedIndex === trackIndices.length && insertionIndex <= Playlist.currentTrackIdx) {
-            Playlist.currentTrackIdx += trackIndices.length;
+        if (movedIndex === trackIndices.length && insertionIndex <= Playlist.currentItemIdx) {
+            Playlist.currentItemIdx += trackIndices.length;
         } else if (movedIndex !== trackIndices.length) {
-            Playlist.currentTrackIdx = insertionIndex + movedIndex;
+            Playlist.currentItemIdx = insertionIndex + movedIndex;
         }
         const mapping = new Array(indexTransform.length);
         for (let i = 0; i < indexTransform.length; i++) {
             mapping[indexTransform[i]] = i;
         }
-        Playlist.events.reorder.emit({ from: trackIndices, to: index, current: Playlist.currentTrackIdx, mapping });
+        Playlist.events.reorder.emit({ from: trackIndices, to: index, current: Playlist.currentItemIdx, mapping });
     }
 
     /**
@@ -256,8 +264,8 @@ export class Playlist {
      */
     static changeTrack(trackIndex: number) {
         if (trackIndex >= 0 && trackIndex < Playlist.list.length) {
-            Playlist.currentTrackIdx = trackIndex;
-            Playlist.events.trackChange.emit({ index: Playlist.currentTrackIdx, id: Playlist.currentTrackId });
+            Playlist.currentItemIdx = trackIndex;
+            Playlist.events.trackChange.emit({ index: Playlist.currentItemIdx, item: Playlist.currentItem });
         }
     }
 
@@ -268,76 +276,76 @@ export class Playlist {
         this.changeTrack(Playlist.list.length - 1);
     }
 
-    static get currentTrackId(): number | null {
+    static get currentItem(): PlaylistItem | null {
         if (Playlist.isEmpty()) {
             return null;
         }
-        return Playlist.list[Playlist.currentTrackIdx];
+        return Playlist.list[Playlist.currentItemIdx];
     }
 
     /**
      * @returns If the current track has one after it in the playlist.
      */
     static hasNext(): boolean {
-        return !Playlist.isEmpty() && Playlist.currentTrackIdx < Playlist.list.length - 1;
+        return !Playlist.isEmpty() && Playlist.currentItemIdx < Playlist.list.length - 1;
     }
 
     /**
      * @returns If the current track has one before it in the playlist.
      */
     static hasPrevious(): boolean {
-        return !Playlist.isEmpty() && Playlist.currentTrackIdx > 0;
+        return !Playlist.isEmpty() && Playlist.currentItemIdx > 0;
     }
 
     /**
      * Advances the playlist to the next track in the list, if available.
-     * @returns The new track ID, or `null` if none exists.
+     * @returns The new item, or `null` if none exists.
      */
-    static next(): number | null {
+    static next(): PlaylistItem | null {
         if (!Playlist.hasNext()) {
             return null;
         }
-        Playlist.changeTrack(Playlist.currentTrackIdx + 1);
-        return Playlist.currentTrackId;
+        Playlist.changeTrack(Playlist.currentItemIdx + 1);
+        return Playlist.currentItem;
     }
 
     /**
      * Retreats the playlist to the previous track in the list, if available.
-     * @returns The new track ID, or `null` if none exists.
+     * @returns The new item, or `null` if none exists.
      */
-    static previous(): number | null {
+    static previous(): PlaylistItem | null {
         if (!Playlist.hasPrevious()) {
             return null;
         }
-        Playlist.changeTrack(Playlist.currentTrackIdx - 1);
-        return Playlist.currentTrackId;
+        Playlist.changeTrack(Playlist.currentItemIdx - 1);
+        return Playlist.currentItem;
     }
 
     /**
      * Similar to {@link Playlist.next}, except looping is performed depending on current loop mode.
-     * @returns The new track ID, or `null` if none exists.
+     * @returns The new item, or `null` if none exists.
      */
-    static autoNext(): number | null {
+    static autoNext(): PlaylistItem | null {
         if (this.isEmpty()) {
             return null;
         }
 
         if (this.loopMode === LoopMode.Track) {
             // Change to same track, emit trackChange event
-            this.changeTrack(this.currentTrackIdx);
-            return this.currentTrackId;
+            this.changeTrack(this.currentItemIdx);
+            return this.currentItem;
         }
 
-        const nextIdx = this.currentTrackIdx + 1;
+        const nextIdx = this.currentItemIdx + 1;
 
         if (nextIdx < this.list.length) {
             this.changeTrack(nextIdx);
-            return this.currentTrackId;
+            return this.currentItem;
         }
 
         if (this.loopMode === LoopMode.Playlist) {
             this.changeTrack(0);
-            return this.currentTrackId;
+            return this.currentItem;
         }
 
         return null;
@@ -359,9 +367,9 @@ export class Playlist {
 
     /**
      * @param index The index of the playlist
-     * @returns the track ID in the specified index in the playlist, or `null` if the index is out of bounds.
+     * @returns the item in the specified index in the playlist, or `null` if the index is out of bounds.
      */
-    static getTrackByIndex(index: number): number | null {
+    static getItemByIndex(index: number): PlaylistItem | null {
         if (index < 0 || index >= Playlist.list.length) return null;
         return Playlist.list[index];
     }
@@ -370,7 +378,10 @@ export class Playlist {
      * @returns the total duration of the playlist
      */
     static getDuration() {
-        return Playlist.list.reduce((prev, current) => prev + Track.byID(current)!.duration, 0);
+        return Playlist.list.reduce((prev, current) => {
+			const currentDuration = (current.type == PlaylistItemType.STREAM ? Infinity : Track.byID(current.trackId)!.duration);
+			return prev + currentDuration;
+		}, 0);
     }
 
     /**

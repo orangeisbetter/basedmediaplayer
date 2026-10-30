@@ -1,5 +1,5 @@
 import { Player } from "../player.ts";
-import { Playlist, PlaylistInsertEventData, PlaylistNumTracksChangeEventData, PlaylistRemoveEventData, PlaylistReorderEventData, PlaylistShuffleEventData, PlaylistTrackChangeEventData } from "../playlist.ts";
+import { Playlist, PlaylistInsertEventData, PlaylistItem, PlaylistItemType, PlaylistNumTracksChangeEventData, PlaylistRemoveEventData, PlaylistReorderEventData, PlaylistShuffleEventData, PlaylistTrackChangeEventData } from "../playlist.ts";
 import { convertTime } from "../time.ts";
 import { Track } from "../track.ts";
 import { MenuSystem, Menu } from "./menu.ts";
@@ -242,9 +242,9 @@ export class PlaylistView {
             const indices = JSON.parse(dt.getData("application/mp-playlist-indices"));
             Playlist.reorder(index, ...indices);
         } else if (dt.types.includes("application/mp-track-ids")) {
-            // Insert tracks from library
+            // Insert tracks from library (unused at the moment)
             const trackIds = JSON.parse(dt.getData("application/mp-tracks-ids"));
-            Playlist.insert(index, ...trackIds);
+            Playlist.insert(index, ...trackIds.map(PlaylistItem.createFromTrack));
         }
     }
 
@@ -259,17 +259,15 @@ export class PlaylistView {
         Player.play();
     }
 
-    private static createPlaylistItem(trackId: number): DocumentFragment {
-        const track = Track.byID(trackId)!;
-
+    private static createPlaylistItem(title: string, duration: number): DocumentFragment {
         const clone = document.importNode(template_playlist_item.content, true);
 
         const trackName = clone.querySelector(".track-name") as HTMLSpanElement;
-        trackName.textContent = track.title;
-        trackName.title = track.title;
+        trackName.textContent = title;
+        trackName.title = title;
 
         const time = clone.querySelector(".time")!;
-        time.textContent = convertTime(track.duration);
+        time.textContent = convertTime(duration);
 
         return clone;
     }
@@ -285,19 +283,31 @@ export class PlaylistView {
         return this.items[index] as HTMLDivElement;
     }
 
-    private static addHandler(trackIds: number[]) {
-        for (const trackId of trackIds) {
-            const item = PlaylistView.createPlaylistItem(trackId);
-            PlaylistView.items.push(item.firstElementChild as HTMLElement);
-            PlaylistView.list.appendChild(item);
+    private static addHandler(items: PlaylistItem[]) {
+        for (const item of items) {
+			let entry;
+			if (item.type == PlaylistItemType.TRACK) {
+				const track = Track.byID(item.trackId)!;
+				entry = PlaylistView.createPlaylistItem(track.title, track.duration);
+			} else {
+				entry = PlaylistView.createPlaylistItem(item.stream.getTitle(), Infinity);
+			}
+			PlaylistView.items.push(entry.firstElementChild as HTMLElement);
+			PlaylistView.list.appendChild(entry);
         }
     }
 
-    private static insertHandler({ tracks, to }: PlaylistInsertEventData) {
+    private static insertHandler({ items: items, to }: PlaylistInsertEventData) {
         const afterNode = PlaylistView.getItemByIndex(to);
-        for (const trackId of tracks) {
-            const item = PlaylistView.createPlaylistItem(trackId);
-            PlaylistView.list.insertBefore(item, afterNode);
+        for (const item of items) {
+			let entry;
+			if (item.type == PlaylistItemType.TRACK) {
+				const track = Track.byID(item.trackId)!;
+				entry = PlaylistView.createPlaylistItem(track.title, track.duration);
+			} else {
+				entry = PlaylistView.createPlaylistItem(item.stream.getTitle(), Infinity);
+			}
+            PlaylistView.list.insertBefore(entry, afterNode);
         }
         PlaylistView.updateItemsCache();
     }
@@ -376,7 +386,7 @@ export class PlaylistView {
     private static numTracksChangeHandler({ number, duration }: PlaylistNumTracksChangeEventData) {
         // Handle this somehow
         const playlistInfo = playlist_panel.querySelector(".playlist-info")!;
-        playlistInfo.textContent = `${number} track${number != 1 ? "s" : ""}, duration: ${convertTime(duration)}`;
+        playlistInfo.textContent = `${number} item${number != 1 ? "s" : ""}, duration: ${convertTime(duration)}`;
     }
 
     public static toggleVisibility() {

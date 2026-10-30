@@ -2,6 +2,11 @@ import { Collection } from "../collection.ts";
 import { TreeView, TreeViewChildNode, TreeViewChildNodeClickHandler } from "./treeview.ts";
 import { MusicBrowser } from "../musicbrowser.ts";
 import { CompareEntry, compareSmartAlpha, compareStack, compareUndefinedLast } from "../util/sort.ts";
+import { Player } from "../player.ts";
+import { Playlist, PlaylistItemType } from "../playlist.ts";
+import { Stream } from "../stream.ts";
+import { RadioStation } from "../radiostation.ts";
+import { createCollection } from "./createcollection.ts";
 
 class CollectionNode {
     collection: Collection;
@@ -20,6 +25,23 @@ class CollectionNode {
             iconName: "music-box-multiple",
             children: this.children.map(child => child.treeViewNode),
             onClick: () => this.click(),
+			contextMenu: {
+				menuitems: [
+					{
+						kind: "item",
+						text: "Create new collection here",
+						click: () => createCollection(collection)
+					},
+					{
+						kind: "separator"
+					},
+					() => ({
+						kind: "item",
+						text: `Delete collection "${collection.name}" (${collection.getTrackIds().size} tracks)`,
+						click: () => collection.deleteSelf()
+					})
+				]
+			}
         });
 
         collection.attachBaseObserver(collection => this.observer(collection));
@@ -80,6 +102,8 @@ export class LibraryTreeView {
     static treeView: TreeView;
     static collectionNodes: CollectionNode[];
     static collectionTreeNode: TreeViewChildNode;
+	static radioStationsRootNode: TreeViewChildNode;
+	static radioStationsNodes: TreeViewChildNode[] = [];
 
     static initCollectionRootNode() {
         CollectionNode.sortChildren(this.collectionNodes);
@@ -87,7 +111,16 @@ export class LibraryTreeView {
             labelText: "Collections",
             iconName: "music-box-multiple",
             children: this.collectionNodes.map(node => node.treeViewNode),
-            expanded: true
+            expanded: true,
+			contextMenu: {
+				menuitems: [
+					{
+						kind: "item",
+						text: "Create new collection here",
+						click: () => createCollection(null)
+					}
+				]
+			}
         });
 
         Collection.attachRootObserver(collections => this.collectionRootObserver(collections));
@@ -123,9 +156,45 @@ export class LibraryTreeView {
         }
     }
 
+	static getRadioStationItem(station: RadioStation): TreeViewChildNode {
+		const stream = new Stream(station.url, station.title);
+		return new TreeViewChildNode({
+			labelText: station.title ?? station.url,
+			onClick: () => {
+				Playlist.clear();
+				Playlist.add({ type: PlaylistItemType.STREAM, stream: stream });
+				Playlist.changeTrack(0);
+				Player.play();
+			}
+		})
+	}
+
+	static updateRadioStations(stations: RadioStation[]) {
+		for (const node of this.radioStationsNodes) {
+			node.remove();
+		}
+
+		this.radioStationsNodes = [];
+
+		stations.sort(compareStack([
+			new CompareEntry(station => station.title, compareSmartAlpha)
+		]));
+
+		for (const station of stations) {
+			const newNode = this.getRadioStationItem(station);
+			this.radioStationsRootNode.addChild(newNode);
+			this.radioStationsNodes.push(newNode);
+		}
+	}
+
     static init(element: HTMLElement) {
         this.collectionNodes = Collection.rootCollections.map(child => new CollectionNode(Collection.byID(child)!));
         this.initCollectionRootNode();
+		this.radioStationsRootNode = new TreeViewChildNode({
+			labelText: "Radio Stations",
+			iconName: "radio",
+			expanded: true,
+		});
         this.treeView = new TreeView(element, [
             new TreeViewChildNode({
                 labelText: "Local library",
@@ -150,6 +219,7 @@ export class LibraryTreeView {
             //         })
             //     ]
             // }),
+			this.radioStationsRootNode,
         ]);
     }
 

@@ -3,7 +3,7 @@ import { Artist } from "../artist.ts";
 import { Collection } from "../collection.ts";
 import { BrowserState, MusicBrowser } from "../musicbrowser.ts";
 import { Player } from "../player.ts";
-import { Playlist } from "../playlist.ts";
+import { Playlist, PlaylistItem } from "../playlist.ts";
 import { convertTime } from "../time.ts";
 import { Track } from "../track.ts";
 import { MenuSystem } from "./menu.ts";
@@ -242,7 +242,7 @@ export class AlbumDisplay {
         index ??= this.list.getSelected()[0];
 
         Playlist.clear();
-        Playlist.add(...trackIds);
+        Playlist.add(...trackIds.map(PlaylistItem.createFromTrack));
 		Playlist.changeTrack(index);
         Player.play();
     }
@@ -273,16 +273,16 @@ export class AlbumDisplay {
 
     private static addToPlaylistHandler() {
 		if (Playlist.getNumTracks() == 0) {
-			Playlist.add(...this.trackIds);
+			Playlist.add(...this.trackIds.map(PlaylistItem.createFromTrack));
 			Playlist.changeTrack(0);
 		} else {
-			Playlist.add(...this.trackIds);
+			Playlist.add(...this.trackIds.map(PlaylistItem.createFromTrack));
 		}
     }
 
     private static shufflePlayHandler() {
         Playlist.clear();
-        Playlist.add(...this.trackIds);
+        Playlist.add(...this.trackIds.map(PlaylistItem.createFromTrack));
         Playlist.shuffle();
         Playlist.changeTrack(0);
         Player.play();

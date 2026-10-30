@@ -1,5 +1,7 @@
+import { FileSystem } from "./filesystem.ts";
 import { Player, PlayerError } from "./player.ts";
-import { Playlist, PlaylistTrackChangeEventData } from "./playlist.ts";
+import { Playlist, PlaylistItemType, PlaylistTrackChangeEventData } from "./playlist.ts";
+import { Track } from "./track.ts";
 
 export class PlaybackController {
     private static autoplayEnabled: boolean;
@@ -24,7 +26,7 @@ export class PlaybackController {
     }
 
 	private static readonly onError = (error: PlayerError) => {
-		console.dir(error);
+		console.error("Player error: ", error);
 		// Try the next track
 		Promise.resolve().then(() => {
 			if (Playlist.autoNext() !== null) {
@@ -34,8 +36,16 @@ export class PlaybackController {
 	}
 
 	// Player always follows playlist's current track
-	private static readonly onTrackChange = ({ id }: PlaylistTrackChangeEventData) => {
-        Player.changeTrack(id);
+	private static readonly onTrackChange = ({ item }: PlaylistTrackChangeEventData) => {
+		if (!item) {
+			Player.clear();
+			return;
+		} else if (item.type == PlaylistItemType.TRACK) {
+			const track = Track.byID(item.trackId)!;
+			Player.changeTrack(track, FileSystem.getFileByID(track.fileId)!.handle);
+		} else {
+			Player.changeStream(item.stream);
+		}
     }
 
 	private static readonly onTrackFinished = () => {

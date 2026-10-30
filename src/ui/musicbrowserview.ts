@@ -1,8 +1,7 @@
 import { IDBPDatabase } from "idb";
 import { Album } from "../album.ts";
-import { Collection } from "../collection.ts";
 import { Player } from "../player.ts";
-import { Playlist } from "../playlist.ts";
+import { Playlist, PlaylistItem } from "../playlist.ts";
 import { convertTime } from "../time.ts";
 import { Track } from "../track.ts";
 import { CompareEntry, compareSmartAlpha, compareStack, compareUndefinedLast, numberCompare } from "../util/sort.ts";
@@ -17,7 +16,6 @@ declare const template_album: HTMLTemplateElement;
 declare const template_track_list_item: HTMLTemplateElement;
 declare const template_artist_list_item: HTMLTemplateElement;
 
-type AlbumClickHandler = (albumId: number, collection: Collection) => void;
 type BrowserMode = "artists" | "albums" | "tracks";
 type AlbumSortingMode = "album_name" | "album_artist" | "date";
 type TrackSortingMode = string;
@@ -474,7 +472,7 @@ export class MusicBrowserView {
 		startIndex ??= 0;
 
         Playlist.clear();
-        Playlist.add(...this.trackIds);
+        Playlist.add(...this.trackIds.map(PlaylistItem.createFromTrack));
         Playlist.changeTrack(startIndex);
         Player.play();
     }

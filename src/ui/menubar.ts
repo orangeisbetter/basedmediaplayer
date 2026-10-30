@@ -1,5 +1,8 @@
+import { Library } from "../library.ts";
 import { CassetteRecorderView } from "./cassetterecorderview.ts";
 import { Menu, MenuSystem } from "./menu.ts";
+import { MusicBrowserView } from "./musicbrowserview.ts";
+import { RadioStationsEditor } from "./radiostationsview.ts";
 import { showReleaseNotesDialog } from "./releasenotes.ts";
 import { StylesEditor } from "./styleseditor.ts";
 
@@ -7,10 +10,6 @@ declare const playver: HTMLDialogElement;
 
 export class MenuBar {
     private static rootElement: HTMLDivElement;
-
-    private static optionsButton: HTMLButtonElement;
-    private static toolsButton: HTMLButtonElement;
-    private static helpButton: HTMLButtonElement;
 
     private static menu: Menu = {
         menuitems: [
@@ -24,6 +23,18 @@ export class MenuBar {
                             text: "Change styling / theme",
 							click: () => StylesEditor.openDialog()
                         },
+						{
+							kind: "item",
+							text: "Manage radio stations",
+							click: () => RadioStationsEditor.showDialog()
+						},
+						{
+							kind: "item",
+							text: "Rescan library",
+							click: () => Library.scanLibrary().then(() => {
+								MusicBrowserView.update()
+							})
+						}
                     ]
                 }
             },

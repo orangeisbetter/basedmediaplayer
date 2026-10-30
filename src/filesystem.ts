@@ -105,16 +105,12 @@ export class FileSystem {
         }
     }
 
-    private static async loadStoredState(db: IDBPDatabase): Promise<Map<string, FileSystemFile>> {
+    static async loadAll(db: IDBPDatabase): Promise<void> {
         const allFiles: FileSystemFile[] = await db.getAll("files");
 
-        const map = new Map<string, FileSystemFile>();
-
         for (const file of allFiles) {
-            map.set(file.path, file);
+			this.files.set(file.id, file);
         }
-
-        return map;
     }
 
     private static async getCurrentState(dirHandle: FileSystemDirectoryHandle, fileFilter: (file: globalThis.File) => boolean): Promise<Map<string, FileSystemFileNotStored>> {
@@ -160,10 +156,12 @@ export class FileSystem {
     }
 
     static async scan(db: IDBPDatabase, dirHandle: FileSystemDirectoryHandle, fileFilter: (file: globalThis.File) => boolean): Promise<ScanResult> {
-        const [currentState, storedState] = await Promise.all([
-            this.getCurrentState(dirHandle, fileFilter),
-            this.loadStoredState(db)
-        ]);
+        const currentState = await this.getCurrentState(dirHandle, fileFilter);
+
+		const storedState = new Map<string, FileSystemFile>();
+		for (const file of this.files.values()) {
+			storedState.set(file.path, file);
+		}
 
         for (const [, entry] of storedState) {
             this.files.set(entry.id, entry);

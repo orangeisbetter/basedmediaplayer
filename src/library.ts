@@ -13,6 +13,8 @@ declare const load_dialog: HTMLDialogElement;
 declare const loading_lbl: HTMLDivElement;
 
 export class Library {
+	private static db: IDBPDatabase;
+
     static saveRootHandle(db: IDBPDatabase, dirHandle: FileSystemDirectoryHandle) {
         return db.put("config", dirHandle, "root");
     }
@@ -194,12 +196,12 @@ export class Library {
         return album;
     }
 
-    static async updateLibrary(db: IDBPDatabase, dirHandle: FileSystemDirectoryHandle): Promise<ScanResult> {
+    static async updateLibrary(dirHandle: FileSystemDirectoryHandle): Promise<ScanResult> {
         load_dialog.showModal();
 
         loading_lbl.textContent = "Scanning for library changes...";
 
-        const changes = await FileSystem.scan(db, dirHandle, file => (
+        const changes = await FileSystem.scan(Library.db, dirHandle, file => (
             file.type.startsWith("audio") ||
             this.isCoverImage(file.type, file.name)
         ));
@@ -219,7 +221,7 @@ export class Library {
 
 		progress_bar.classList.remove("indeterminate");
 
-        const deleteTransaction = db.transaction([Track.STORE_NAME, Album.STORE_NAME, Artist.STORE_NAME, "collections"], "readwrite");
+        const deleteTransaction = Library.db.transaction([Track.STORE_NAME, Album.STORE_NAME, Artist.STORE_NAME, "collections"], "readwrite");
         this.processDeletedFiles(deleteTransaction, deleted, changedAlbums, progress_bar, loading_lbl);
         deleteTransaction.commit();
 
@@ -317,7 +319,7 @@ export class Library {
         console.log("[debug] Resulting database changes:", { changedTracks, changedAlbums, changedArtists });
 
         if (changedTracks.size > 0 || changedAlbums.size > 0 || changedArtists.size > 0) {
-            const updateTransaction = db.transaction([Track.STORE_NAME, Album.STORE_NAME, Artist.STORE_NAME], "readwrite");
+            const updateTransaction = Library.db.transaction([Track.STORE_NAME, Album.STORE_NAME, Artist.STORE_NAME], "readwrite");
     
             const tracksStore = updateTransaction.objectStore(Track.STORE_NAME);
             for (const trackId of changedTracks) {
@@ -353,10 +355,13 @@ export class Library {
         return changes;
     }
 
-    static async loadLibrary(db: IDBPDatabase, _forceRescan: boolean) {
+    static async loadLibrary(db: IDBPDatabase, forceRescan: boolean) {
+		Library.db = db;
+
 		Collection.init(db);
 		
         await Promise.all([
+			FileSystem.loadAll(db),
             Track.loadAll(db),
             Album.loadAll(db),
             Artist.loadAll(db),
@@ -366,25 +371,31 @@ export class Library {
         Track.linkToArtists();
         Album.linkToArtists();
 
-        let newLibrary = false;
-        let dirHandle = await this.loadRootHandle(db);
-        if (!dirHandle || !await ensureReadPermission(dirHandle)) {
-            this.testSupported();
-            dirHandle = await this.showSelectLibraryDialog();
-            await this.saveRootHandle(db, dirHandle);
-            newLibrary = true;
-        } /* else if (!forceRescan) {
-            return;
-        } */
+		if (!forceRescan) {
+			return;
+		}
 
-        const changes = await this.updateLibrary(db, dirHandle);
+		await this.scanLibrary();
+    }
 
-        if (newLibrary) {
-            this.showLibraryLoadSuccessDialog();
-        }
+	static async scanLibrary() {
+		let newLibrary = false;
+		let dirHandle = await this.loadRootHandle(Library.db);
+		if (!dirHandle || !await ensureReadPermission(dirHandle)) {
+			this.testSupported();
+			dirHandle = await this.showSelectLibraryDialog();
+			await this.saveRootHandle(Library.db, dirHandle);
+			newLibrary = true;
+		}
+
+		const changes = await this.updateLibrary(dirHandle);
+
+		if (newLibrary) {
+			this.showLibraryLoadSuccessDialog();
+		}
 
         if (changes.newFiles.length > 0 || changes.changedFiles.length > 0 || changes.removedFiles.length > 0) {
             // TODO changes dialog
         }
-    }
+	}
 }

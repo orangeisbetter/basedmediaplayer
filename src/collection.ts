@@ -56,6 +56,7 @@ export class Collection {
         this.parentId = options.parentId;
         this.children = [];
         Collection.collections.set(this.id, this);
+		Collection.db.put(Collection.STORE_NAME, this.getStore());
     }
 
     static init(db: IDBPDatabase) {
@@ -100,6 +101,10 @@ export class Collection {
             }
             Collection.collections.get(parentId)!.children.push(id);
         }
+		
+		// Trigger observers on initial load
+		const array = this.rootCollections.map(id => this.byID(id)!);
+		this.rootObservers.forEach(observer => observer(array.slice()));
     }
 
     static byID(id: number): Collection | undefined {

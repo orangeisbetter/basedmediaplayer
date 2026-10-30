@@ -1,4 +1,5 @@
 import { changeIcon } from "../util/icons.ts";
+import { Menu, MenuSystem } from "./menu.ts";
 
 declare const tree_list_item: HTMLTemplateElement;
 declare const tree_list: HTMLTemplateElement;
@@ -62,9 +63,9 @@ export class TreeViewChildNode extends TreeViewNode {
         }
     }
 
-    constructor(options: { children?: TreeViewNode[], iconName?: string, labelText: string, expanded?: boolean, onClick?: TreeViewChildNodeClickHandler }) {
+    constructor(options: { children?: TreeViewNode[], iconName?: string, labelText: string, expanded?: boolean, onClick?: TreeViewChildNodeClickHandler, contextMenu?: Menu }) {
         super({ children: options.children });
-        this.createElement({ iconName: options.iconName, onClick: options.onClick });
+        this.createElement({ iconName: options.iconName, onClick: options.onClick, contextMenu: options.contextMenu });
         for (const child of this.children) {
             child.parent = this;
             this.childrenElement.appendChild(child.element);
@@ -73,7 +74,7 @@ export class TreeViewChildNode extends TreeViewNode {
         this.expanded = options.expanded ?? false;
     }
 
-    protected createElement(options: { iconName?: string, onClick?: TreeViewChildNodeClickHandler }) {
+    protected createElement(options: { iconName?: string, onClick?: TreeViewChildNodeClickHandler, contextMenu?: Menu }) {
         this.element = document.importNode(tree_list_item.content, true).firstElementChild as HTMLElement;
 
         const icon = this.element.querySelector("svg")!;
@@ -93,7 +94,18 @@ export class TreeViewChildNode extends TreeViewNode {
             this.labelElement.classList.add("active");
             this.labelElement.addEventListener("click", options.onClick.bind(this));
         }
+
+		if (options.contextMenu) {
+			const row = this.element.querySelector(".row")!;
+			MenuSystem.setContextMenu(row, options.contextMenu);
+		}
     }
+
+	override remove(): void {
+		const row = this.element.querySelector(".row")!;
+		MenuSystem.removeContextMenu(row);
+		super.remove();
+	}
 
     expandToggle() {
         this.expanded = !this.expanded;

@@ -1,6 +1,6 @@
 import { Collection } from "../collection.ts";
 import { Player } from "../player.ts";
-import { Playlist } from "../playlist.ts";
+import { Playlist, PlaylistItem } from "../playlist.ts";
 import { CompareEntry, compareSmartAlpha, compareStack, compareUndefinedLast } from "../util/sort.ts";
 import { createCollection } from "./createcollection.ts";
 import { MenuEntry } from "./menu.ts";
@@ -123,20 +123,20 @@ function getCollectionMenuItem(trackIds: number[], collection: Collection): Menu
 }
 
 function tracksPlay(trackIds: number[]) {
-    Playlist.add(...trackIds);
+    Playlist.add(...trackIds.map(PlaylistItem.createFromTrack));
     Playlist.changeTrack(Playlist.getNumTracks() - trackIds.length);
     Player.play();
 }
 
 function tracksPlayNext(trackIds: number[]) {
-    Playlist.insertNext(...trackIds);
+    Playlist.insertNext(...trackIds.map(PlaylistItem.createFromTrack));
 }
 
 function tracksAddToPlaylist(trackIds: number[]) {
 	if (Playlist.getNumTracks() == 0) {
-		Playlist.add(...trackIds);
+		Playlist.add(...trackIds.map(PlaylistItem.createFromTrack));
 		Playlist.changeTrack(0);
 	} else {
-		Playlist.add(...trackIds);
+		Playlist.add(...trackIds.map(PlaylistItem.createFromTrack));
 	}
 }

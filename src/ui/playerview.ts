@@ -4,7 +4,7 @@ import { Keyboard } from "../keyboard.ts";
 import { MusicBrowser } from "../musicbrowser.ts";
 import { PlaybackController } from "../playbackcontroller.ts";
 import { Player } from "../player.ts";
-import { LoopMode, Playlist, PlaylistShuffleEventData, PlaylistTrackChangeEventData } from "../playlist.ts";
+import { LoopMode, Playlist, PlaylistItemType, PlaylistShuffleEventData, PlaylistTrackChangeEventData } from "../playlist.ts";
 import { convertTime } from "../time.ts";
 import { Track } from "../track.ts";
 import { changeIcon } from "../util/icons.ts";
@@ -37,7 +37,9 @@ export class PlayerView {
 	private static lyricsText: HTMLElement;
 	private static noLyricsLabel: HTMLElement;
 
+	private static isStream: boolean = false;
     private static trackId: number | null = null;
+	private static streamTitle: string | null = null;
 	private static playable: boolean = false;
 
     constructor() {
@@ -131,9 +133,9 @@ export class PlayerView {
 
         // Event listener attaching
         Playlist.events.numTracksChange.addListener(this.skipButtonCheck.bind(this));
-        Playlist.events.trackChange.addListener(this.skipButtonCheck.bind(this));
         Playlist.events.reorder.addListener(this.skipButtonCheck.bind(this));
         Playlist.events.shuffle.addListener(this.shuffleHandler.bind(this));
+        Playlist.events.trackChange.addListener(this.skipButtonCheck.bind(this));
         Playlist.events.trackChange.addListener(this.trackChangeHandler.bind(this));
         Player.events.timeChange.addListener(this.timeChangeHandler.bind(this));
         Player.events.play.addListener(this.playHandler.bind(this));
@@ -141,6 +143,10 @@ export class PlayerView {
 
         MusicBrowser.attachObserver(() => this.observerHandler());
     }
+
+	private static get isActive() {
+		return PlayerView.isStream ? PlayerView.streamTitle !== null : PlayerView.trackId !== null;
+	}
 
     private static setupVolumeControl() {
         let locked = false;
@@ -261,12 +267,14 @@ export class PlayerView {
     }
 
     private static updateTitle() {
-        if (this.trackId) {
-            const track = Track.byID(this.trackId)!;
-
-            const artistString = Artist.getArtistString(track.artists);
-            document.title = track.title + `${artistString ? " - " + artistString : ""}`;
-        } else {
+		if (this.isStream && this.streamTitle) {
+			document.title = this.streamTitle;
+		} else if (!this.isStream && this.trackId !== null) {
+			const track = Track.byID(this.trackId)!;
+	
+			const artistString = Artist.getArtistString(track.artists);
+			document.title = track.title + `${artistString ? " - " + artistString : ""}`;
+		} else {
             document.title = "Nothing is playing";
         }
     }
@@ -337,14 +345,14 @@ export class PlayerView {
         }
     }
 
-    private static trackChangeHandler({ id }: PlaylistTrackChangeEventData) {
-        if (this.mediaControlsEnabled && this.trackId === null && id !== null) {
+    private static trackChangeHandler({ item }: PlaylistTrackChangeEventData) {
+        if (this.mediaControlsEnabled && !this.isActive && item !== null) {
             navigator.mediaSession.setActionHandler("play", () => Player.play());
             navigator.mediaSession.setActionHandler("pause", () => Player.pause());
             navigator.mediaSession.setActionHandler("previoustrack", () => PlaybackController.skipPreviousAndPlay());
             navigator.mediaSession.setActionHandler("nexttrack", () => PlaybackController.skipNextAndPlay());
             navigator.mediaSession.setActionHandler("stop", () => Playlist.clear());
-        } else if (id === null) {
+        } else if (item === null) {
             navigator.mediaSession.playbackState = "none";
             navigator.mediaSession.metadata = null;
 
@@ -357,12 +365,23 @@ export class PlayerView {
             }
         }
 
-        this.trackId = id;
+		if (item) {
+			if (item.type == PlaylistItemType.TRACK) {
+				this.isStream = false;
+				this.trackId = item.trackId;
+			} else {
+				this.isStream = true;
+				this.streamTitle = item.stream.getTitle();
+			}
+		} else {
+			this.trackId = null;
+			this.streamTitle = null;
+		}
 
         changeIcon(this.playPauseIcon, "play");
         this.trackProgressBar.style.setProperty('--progress', `0%`);
 
-        if (id === null) {
+        if (item === null) {
             this.trackProgressBar.classList.add("disabled");
 
 			this.playable = false;
@@ -384,51 +403,76 @@ export class PlayerView {
             return;
         }
 
-        const track = Track.byID(id);
-        if (!track) return;
+		if (item.type == PlaylistItemType.TRACK) {
+			const track = Track.byID(item.trackId);
+			if (!track) return;
+	
+			this.trackProgressBar.classList.remove("disabled");
+	
+			this.playable = true;
+			this.playPauseButton.disabled = false;
+	
+			this.trackTitleLabel.textContent = track.title;
+			this.trackTimeLabel.textContent = `${convertTime(0)} / ${convertTime(track.duration)}`;
+	
+			const album = Album.byID(track.albumId)!;
+			this.albumNameLabel.textContent = album.name ?? "Unknown Album";
+			this.albumArtistLabel.textContent = album.getArtistName() ?? "Unknown Artist";
+			this.albumCoverImage.src = album.getCoverURL(track.coverIndices[0]);
+			this.albumCoverImage.style.display = "";
+	
+			if (track.lyrics && track.lyrics?.length > 0) {
+				this.lyricsText.innerHTML = "";
+				track.lyrics[0]!.split("\n").forEach(line => {
+					const element = document.createElement("span");
+					element.className = "line";
+					element.textContent = `${line}\n`;
+					this.lyricsText.appendChild(element);
+				})
+				this.noLyricsLabel.style.display = "none";
+			} else {
+				this.lyricsText.innerHTML = "";
+				this.noLyricsLabel.style.display = "";
+			}
+	
+			this.updateTitle();
+	
+			let coverIndices = track.coverIndices;
+			if (coverIndices.length == 0 && album.covers.length > 0) {
+				coverIndices = Array.from({ length: album.covers.length }, (_, i) => i);
+			}
+			const covers: MediaImage[] = coverIndices.map(coverIndex => ({ src: album.getCoverURL(coverIndex) }));
+	
+			navigator.mediaSession.metadata = new MediaMetadata({
+				title: track.title,
+				artist: Artist.getArtistString(track.artists),
+				album: album.name,
+				artwork: covers
+			});
+		} else { // is PlaylistItemTrack.STREAM
+			this.trackProgressBar.classList.add("disabled");
+	
+			this.playable = true;
+			this.playPauseButton.disabled = false;
+	
+			this.trackTitleLabel.textContent = item.stream.getTitle();
+			this.trackTimeLabel.textContent = `${convertTime(Infinity)} / ${convertTime(Infinity)}`;
 
-        this.trackProgressBar.classList.remove("disabled");
+            this.albumNameLabel.textContent = "";
+            this.albumArtistLabel.textContent = "";
+            this.albumCoverImage.src = "";
+            this.albumCoverImage.style.display = "none";
 
-		this.playable = true;
-        this.playPauseButton.disabled = false;
-
-        this.trackTitleLabel.textContent = track.title;
-        this.trackTimeLabel.textContent = `${convertTime(0)} / ${convertTime(track.duration)}`;
-
-        const album = Album.byID(track.albumId)!;
-        this.albumNameLabel.textContent = album.name ?? "Unknown Album";
-        this.albumArtistLabel.textContent = album.getArtistName() ?? "Unknown Artist";
-        this.albumCoverImage.src = album.getCoverURL(track.coverIndices[0]);
-        this.albumCoverImage.style.display = "";
-
-        if (track.lyrics && track.lyrics?.length > 0) {
-			this.lyricsText.innerHTML = "";
-			track.lyrics[0]!.split("\n").forEach(line => {
-				const element = document.createElement("span");
-				element.className = "line";
-				element.textContent = `${line}\n`;
-				this.lyricsText.appendChild(element);
-			})
-			this.noLyricsLabel.style.display = "none";
-        } else {
+			// Clear lyrics
 			this.lyricsText.innerHTML = "";
 			this.noLyricsLabel.style.display = "";
-        }
-
-        this.updateTitle();
-
-		let coverIndices = track.coverIndices;
-		if (coverIndices.length == 0 && album.covers.length > 0) {
-			coverIndices = Array.from({ length: album.covers.length }, (_, i) => i);
+	
+			this.updateTitle();
+	
+			navigator.mediaSession.metadata = new MediaMetadata({
+				title: item.stream.getTitle()
+			});
 		}
-		const covers: MediaImage[] = coverIndices.map(coverIndex => ({ src: album.getCoverURL(coverIndex) }));
-
-        navigator.mediaSession.metadata = new MediaMetadata({
-            title: track.title,
-            artist: Artist.getArtistString(track.artists),
-            album: album.name,
-			artwork: covers
-        });
     }
 
     private static shuffleHandler({ }: PlaylistShuffleEventData) {

@@ -1,5 +1,5 @@
 import { Player } from "./player.ts";
-import { Playlist } from "./playlist.ts";
+import { Playlist, PlaylistItem, PlaylistItemType } from "./playlist.ts";
 import { Track } from "./track.ts";
 import { convertTime } from "./time.ts";
 import { PlaybackController } from "./playbackcontroller.ts";
@@ -47,10 +47,13 @@ export class CassetteRecorder {
 
     static calculate(options: CassetteRecorderOptions) {
         const allTracks: DurationTrack[] = Array.from({ length: Playlist.getNumTracks() }, (_, index) => {
-            const trackId = Playlist.getTrackByIndex(index)!;
+			const item = Playlist.getItemByIndex(index)!;
+			if (item.type != PlaylistItemType.TRACK) {
+				throw new Error("Cannot determine duration of HTTP stream!");
+			}
             return {
-                id: trackId,
-                duration: Track.byID(trackId)!.duration
+                id: item.trackId,
+                duration: Track.byID(item.trackId)!.duration
             };
         });
 
@@ -275,28 +278,13 @@ export class CassetteRecorder {
         }
 
         Playlist.clear();
-        Playlist.add(...newPlaylist);
+        Playlist.add(...newPlaylist.map(PlaylistItem.createFromTrack));
     }
 
     private static getNumGaps(numTracks: number) {
         if (numTracks == 0) return 0;
         return numTracks - 1;
     }
-
-    // private static calculateGap(numTracks: number, trackDuration: number, sideTapeLength: number, maxGap: number): number | null {
-    //     if (numTracks == 0 || numTracks == 1) {
-    //         return null;
-    //     } else {
-    //         const gap = (sideTapeLength - trackDuration) / (numTracks - 1);
-    //         if (gap > maxGap) {
-    //             return maxGap;
-    //         } else if (gap >= 0) {
-    //             return gap;
-    //         } else {
-    //             return 0;
-    //         }
-    //     }
-    // }
 
     private static playData: {
         playing: true;

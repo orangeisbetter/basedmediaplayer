@@ -3,7 +3,7 @@ import { Artist } from "../artist.ts";
 import { Collection } from "../collection.ts";
 import { BrowserState, MusicBrowser } from "../musicbrowser.ts";
 import { Player } from "../player.ts";
-import { Playlist } from "../playlist.ts";
+import { Playlist, PlaylistItem } from "../playlist.ts";
 import { convertTime } from "../time.ts";
 import { Track } from "../track.ts";
 import { CompareEntry, compareSmartAlpha, compareStack, compareUndefinedLast, numberCompare } from "../util/sort.ts";
@@ -263,7 +263,7 @@ export class ArtistDisplay {
         index ??= this.list.getSelected()[0];
 
         Playlist.clear();
-        Playlist.add(...this.trackIds);
+        Playlist.add(...this.trackIds.map(PlaylistItem.createFromTrack));
         Playlist.changeTrack(index);
         Player.play();
     }
@@ -272,7 +272,7 @@ export class ArtistDisplay {
         const trackIds = this.getAlbumsTracks();
 
         Playlist.clear();
-        Playlist.add(...trackIds);
+        Playlist.add(...trackIds.map(PlaylistItem.createFromTrack));
         Playlist.changeTrack(0);
         Player.play();
     }
@@ -280,17 +280,17 @@ export class ArtistDisplay {
     private static albumsAddToPlaylistHandler() {
         const trackIds = this.getAlbumsTracks();
 		if (Playlist.getNumTracks() == 0) {
-			Playlist.add(...trackIds);
+			Playlist.add(...trackIds.map(PlaylistItem.createFromTrack));
 			Playlist.changeTrack(0);
 		} else {
-			Playlist.add(...trackIds);
+			Playlist.add(...trackIds.map(PlaylistItem.createFromTrack));
 		}
     }
 
     private static albumsShufflePlayHandler() {
         const trackIds = this.getAlbumsTracks();
         Playlist.clear();
-        Playlist.add(...trackIds);
+        Playlist.add(...trackIds.map(PlaylistItem.createFromTrack));
         Playlist.shuffle();
         Playlist.changeTrack(0);
         Player.play();
@@ -302,16 +302,16 @@ export class ArtistDisplay {
 
     private static tracksAddToPlaylistHandler() {
 		if (Playlist.getNumTracks() == 0) {
-			Playlist.add(...this.trackIds);
+			Playlist.add(...this.trackIds.map(PlaylistItem.createFromTrack));
 			Playlist.changeTrack(0);
 		} else {
-			Playlist.add(...this.trackIds);
+			Playlist.add(...this.trackIds.map(PlaylistItem.createFromTrack));
 		}
     }
 
     private static tracksShufflePlayHandler() {
         Playlist.clear();
-        Playlist.add(...this.trackIds);
+        Playlist.add(...this.trackIds.map(PlaylistItem.createFromTrack));
         Playlist.shuffle();
         Playlist.changeTrack(0);
         Player.play();

@@ -1,7 +1,7 @@
 import { IDBPDatabase } from "idb";
 import { Emitter } from "./emitter.ts";
 import { Track } from "./track.ts";
-import { FileSystem } from "./filesystem.ts";
+import { Stream } from "./stream.ts";
 
 export enum PlayerErrorCode {
 	FILE_NOT_FOUND,
@@ -23,8 +23,9 @@ export class PlayerError extends Error {
 export class Player {
     private static db: IDBPDatabase;
 
-	private static currentTrackId: number | null = null;
+	private static isStream: boolean = false;
     private static currentTrack: Track | null = null;
+	private static currentStream: Stream | null = null;
     private static file: Blob | null = null;
     private static url: string;
     private static playing: boolean = false;
@@ -38,9 +39,9 @@ export class Player {
     private static loadPromise: Promise<void> = Promise.resolve();
 
     static events = {
-        play: new Emitter<number>(),
-        pause: new Emitter<number>(),
-        finish: new Emitter<number>(),
+        play: new Emitter<void>(),
+        pause: new Emitter<void>(),
+        finish: new Emitter<void>(),
         clear: new Emitter<void>(),
         timeChange: new Emitter<number>(),
 		error: new Emitter<PlayerError>(),
@@ -55,6 +56,7 @@ export class Player {
         Player.gainNode = Player.audioContext.createGain();
         Player.gainNode.connect(Player.audioContext.destination);
         Player.audio = new Audio();
+		Player.audio.crossOrigin = "anonymous"; // allow cross-origin audio (streams)
         Player.track = Player.audioContext.createMediaElementSource(Player.audio);
         Player.track.connect(Player.gainNode);
 
@@ -65,28 +67,47 @@ export class Player {
         Player.volumeDB = await Player.db.get("config", "volume");
     }
 
-    static changeTrack(trackId: number | null): void {
-		// Prevent changing tracks if the track id is the same as current (nothing to do)
-		if (trackId === Player.currentTrackId) {
+	static clear() {
+		Player.isStream = false;
+		Player.currentTrack = null;
+		Player.currentStream = null;
+
+		Player.audio.load();
+		Player.events.clear.emit();
+	}
+
+	static changeTrack(track: Track, fileHandle: FileSystemFileHandle) {
+		if (track == Player.currentTrack) {
 			return;
 		}
-		Player.currentTrackId = trackId;
-		
+
+		Player.isStream = false;
+		Player.currentTrack = track;
+		Player.currentStream = null;
+
 		Player.playing = false;
 		Player.audio.pause();
 		Player.audio.removeAttribute("src");
-		
-        if (trackId === null) {
-			Player.currentTrack = null;
-			Player.audio.load();
-            Player.events.clear.emit();
-		} else {
-			const track = Track.byID(trackId)!;
-			Player.currentTrack = track;
-			Player.loadPromise = Player.loadTrackAudio(FileSystem.getFileByID(Player.currentTrack.fileId)!.handle);
-			Player.loadPromise.catch(() => {});
+
+		Player.loadPromise = Player.loadTrackAudio(fileHandle);
+		Player.loadPromise.catch(() => {});
+	}
+	
+	static changeStream(stream: Stream) {
+		if (stream == Player.currentStream) {
+			return;
 		}
-    }
+
+		Player.isStream = true;
+		Player.currentTrack = null;
+		Player.currentStream = stream;
+
+		Player.playing = false;
+		Player.audio.pause();
+		Player.audio.removeAttribute("src");
+
+		Player.loadPromise = Player.loadStreamAudio(stream.url);
+	}
 
     private static async loadTrackAudio(fileHandle: FileSystemFileHandle): Promise<void> {
         const opts = { mode: "read" };
@@ -118,7 +139,18 @@ export class Player {
 		if (Player.url) URL.revokeObjectURL(Player.url);
 		Player.url = URL.createObjectURL(Player.file);
 
-		await new Promise<void>((resolve, reject) => {
+		await Player.changeSource(Player.url);
+    }
+
+	private static async loadStreamAudio(url: string): Promise<void> {
+		if (Player.url) URL.revokeObjectURL(Player.url);
+		Player.url = url;
+
+		await Player.changeSource(url);
+	}
+
+	private static changeSource(url: string): Promise<void> {
+		return new Promise<void>((resolve, reject) => {
 			const loadHandler = () => {
 				removeHandlers();
 				resolve();
@@ -137,9 +169,9 @@ export class Player {
 			Player.audio.addEventListener("canplay", loadHandler);
 			Player.audio.addEventListener("error", errorHandler);
 			
-			Player.audio.src = Player.url;
+			Player.audio.src = url;
 		});
-    }
+	}
 
 	private static toPlayerError(e: unknown): PlayerError {
 		if (e instanceof PlayerError) return e;
@@ -161,6 +193,8 @@ export class Player {
 					return new PlayerError(PlayerErrorCode.DECODE, e.message, e);
 				case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
 					return new PlayerError(PlayerErrorCode.UNSUPPORTED_FORMAT, "File is not a supported audio file format.", e);
+				default:
+					console.error(e);
 				// case MediaError.MEDIA_ERR_NETWORK: // should never happen, this is all local files
 			}
 		}
@@ -169,12 +203,14 @@ export class Player {
 
     private static endedHandler() {
         Player.playing = false;
-        Player.events.pause.emit(Player.currentTrack!.id);
-        Player.events.finish.emit(Player.currentTrack!.id);
+        Player.events.pause.emit();
+        Player.events.finish.emit();
     }
 
     private static timeUpdateHandler() {
-        Player.events.timeChange.emit(Player.audio.currentTime);
+		if (!Player.isStream) {
+			Player.events.timeChange.emit(Player.audio.currentTime);
+		}
     }
 
     private static dbToAmplitude(db: number) {
@@ -208,7 +244,7 @@ export class Player {
 		try {
 			await Player.audio.play();
 			Player.playing = true;
-			Player.events.play.emit(Player.currentTrack!.id);
+			Player.events.play.emit();
 		} catch (e) {
 			Player.events.error.emit(Player.toPlayerError(e));
 		}
@@ -218,7 +254,7 @@ export class Player {
         if (!Player.playing) return;
         Player.playing = false;
         Player.audio.pause();
-        Player.events.pause.emit(Player.currentTrack!.id);
+        Player.events.pause.emit();
     }
 
     static seekTo(time: number) {
@@ -230,7 +266,13 @@ export class Player {
     }
 
     static getCurrentTrackDuration(): number | null {
-        return Player.currentTrack?.duration ?? null;
+		if (Player.isStream) {
+			return Infinity;
+		} else if (Player.currentTrack) {
+			return Player.currentTrack.duration;
+		} else {
+			return null;
+		}
     }
 
     static getCurrentTrack(): Track | null {

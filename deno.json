@@ -9,7 +9,7 @@
   "imports": {
     "@std/": "https://deno.land/std@0.224.0/",
     "idb": "npm:idb@8.0.3",
-    "music-metadata": "npm:music-metadata@11.12.1"
+    "music-metadata": "npm:music-metadata@12.3.2"
   },
   "tasks": {
     "dev": "deno bundle --platform browser --sourcemap --watch src/music.ts -o public/main.js",

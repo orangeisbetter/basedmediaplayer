@@ -226,5 +226,21 @@
 		"bug_fixes": [
 			"Fixed a bug with unused code in the tree view where an item with no icon would break the tree view"
 		]
+	},
+	{
+		"version": "0.6.0",
+		"date": "2026-10-29",
+		"features": [
+			"Added support for internet radio stations as HTTP streams",
+			"Added dialog to add, edit, and delete radio stations",
+			"Added ability to re-scan the library without reloading the page",
+			"Added the ability to create collections by right clicking on the tree view",
+			"Added the ability to delete collections by right clicking on them in the tree view"
+		],
+		"changes": [
+			"Changed initial loading to not gate all features behind loading a library",
+			"Removed automatic library re-scan upon loading the page",
+			"Upgrade music-metadata package to latest version"
+		]
 	}
 ]

@@ -110,6 +110,15 @@
         <h3>Bug Fixes / Improvements</h3>
         <ul id="bug_fixes"></ul>
     </template>
+	<template id="radio_station_row">
+		<div class="row">
+			<span id="title"></span>
+			<span style="display: flex; gap: 4px">
+				<button id="edit-btn">Edit</button>
+				<button id="delete-btn">Delete</button>
+			</span>
+		</div>
+	</template>
     <dialog style="width: 400px" id="load_dialog">
         <div class="content">
             <p>Loading music library. This might take a while.</p>
@@ -258,6 +267,34 @@
             <button id="close-btn">Close</button>
         </div>
     </dialog>
+    <dialog style="width: 300px" id="radio-stations-dialog">
+        <div class="content">
+            <h2>Manage Radio Stations</h2>
+			<div class="grid" id="stations-grid">
+			</div>
+			<button id="add-btn" style="margin-top: 8px;">Add new</button>
+        </div>
+        <div class="button-bar">
+            <div class="glue"></div>
+            <button id="close-btn" onclick="this.closest('dialog').close()">Close</button>
+        </div>
+    </dialog>
+	<dialog style="width: 400px" id="radio-station-add-edit-dialog">
+		<div class="content">
+			<h2 id="add-edit-dialog-title">Edit Radio Station</h2>
+			<div style="display: grid; grid-template-columns: 2fr 4fr; gap: 4px; align-items: center;">
+				<label for="radio-station-title" style="align-self: center;">Title</label>
+				<input type="text" id="radio-station-title">
+				<label for="radio-station-url" style="align-self: center;">HTTP stream URL</label>
+				<input type="text" id="radio-station-url">
+			</div>
+		</div>
+		<div class="button-bar">
+			<div class="glue"></div>
+			<button id="close-btn" onclick="this.closest('dialog').close()">Close</button>
+			<button id="save-btn">Save</button>
+		</div>
+	</dialog>
     <div class="sidebar resizable-panel resize-right" style="--size: 200px" data-min-size="150" data-default-size="200">
         <div class="resize-handle"></div>
         <div id="sidebar"></div>
