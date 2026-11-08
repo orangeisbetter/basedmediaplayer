@@ -1,6 +1,6 @@
 import { Album } from "../album.ts";
 import { Artist } from "../artist.ts";
-import { Collection } from "../collection.ts";
+import { Collection } from "../data/collection.ts";
 import { BrowserState, MusicBrowser } from "../musicbrowser.ts";
 import { Player } from "../player.ts";
 import { Playlist, PlaylistItem } from "../playlist.ts";
@@ -86,7 +86,7 @@ export class AlbumDisplay {
             }
         });
 
-        MusicBrowser.attachObserver(state => this.browserObserver(state));
+		MusicBrowser.events.locationChange.addListener(state => this.browserObserver(state));
 
         this.coverLeftButton.addEventListener("click", () => {
             if (this.coverIndex < 0) return;
@@ -143,7 +143,7 @@ export class AlbumDisplay {
     }
 
     private static browserObserver(state: BrowserState) {
-        this.lastCollection?.detachTrackObserver(this.collectionTrackObserver);
+		this.lastCollection?.events.tracksChangeIndirect.removeListener(this.collectionTrackObserver);
         this.lastCollection = null;
 
         if (state.albumId === null) {
@@ -158,7 +158,7 @@ export class AlbumDisplay {
 
         this.lastAlbumId = state.albumId;
 
-        MusicBrowser.collection?.attachTrackObserver(this.collectionTrackObserver);
+		MusicBrowser.collection?.events.tracksChangeIndirect.addListener(this.collectionTrackObserver);
         this.lastCollection = MusicBrowser.collection;
     }
 

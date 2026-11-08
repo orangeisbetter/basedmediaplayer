@@ -41,7 +41,6 @@ export class Keyboard {
 
 			const keyCode = this.getKeyCode(e);
 			if (keyCode === null) return;
-			console.log(keyCode);
 
 			const isPrintable = keyCode.length === 1;
 			const handler = this.handlers.get(keyCode) ?? (isPrintable ? this.handlers.get("printable") : undefined);

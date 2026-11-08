@@ -2,7 +2,7 @@ import { IDBPDatabase, IDBPTransaction, IDBPObjectStore } from "idb";
 import { ICommonTagsResult, IFormat, parseBlob } from "music-metadata";
 import { Artist } from "./artist.ts";
 import { Album } from "./album.ts";
-import { Collection } from "./collection.ts";
+import { Collection } from "./data/collection.ts";
 
 export interface ProtoTrack {
     path: string;
@@ -248,7 +248,7 @@ export class Track implements TrackStore {
         // Remove track from collections
 		const residingCollections = Collection.getResidingCollections([this.id]);
 		for (const collection of residingCollections) {
-			collection.remove([this.id]);
+			collection.removeTracks([this.id]);
 		}
 
 		// Remove track from registry and caches

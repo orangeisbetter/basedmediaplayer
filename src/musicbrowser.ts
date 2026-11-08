@@ -1,4 +1,6 @@
-import { Collection } from "./collection.ts";
+import { Collection } from "./data/collection.ts";
+import { CollectionRepository } from "./data/collectionstore.ts";
+import { Emitter } from "./emitter.ts";
 
 // Artist and album are mutually exclusive
 export type BrowserState = {
@@ -19,8 +21,6 @@ export type BrowserStateStore = {
     artistId: number | null;
 };
 
-type BrowserObserver = (state: BrowserState) => void
-
 export class MusicBrowser {
     private static state: BrowserState = {
         collection: null,
@@ -38,7 +38,9 @@ export class MusicBrowser {
         return this.state.artistId;
     }
 
-    private static observers: (BrowserObserver)[] = [];
+	static events = {
+		locationChange: new Emitter<BrowserState>()
+	};
 
     constructor() {
         throw Error("This static class cannot be instantiated");
@@ -68,13 +70,21 @@ export class MusicBrowser {
                 artistId: null
             };
         }
-        this.state = {
-            collection: state.collectionId !== null ? Collection.byID(state.collectionId)! : null,
+
+		let collection = null;
+		if (state.collectionId !== null) try {
+			collection = CollectionRepository.byID(state.collectionId);
+		} catch (_) {
+			// do nothing; use null
+		}
+
+        const newState: BrowserState = {
+            collection: collection,
             albumId: state.albumId ?? null,
             artistId: state.artistId ?? null
         };
-
-        this.observers.forEach(observer => observer(this.state));
+		
+		this.setState(newState);
     }
 
     static init() {
@@ -83,14 +93,6 @@ export class MusicBrowser {
         addEventListener("popstate", event => {
             this.restore(event.state);
         });
-    }
-
-    static attachObserver(observer: BrowserObserver) {
-        this.observers.push(observer);
-    }
-
-    static detachObserver(observer: (state: BrowserState) => void) {
-        this.observers = this.observers.filter(test => test !== observer);
     }
 
     static navigate(newStateSet: BrowserStateSet) {
@@ -108,29 +110,40 @@ export class MusicBrowser {
             newState.artistId = newStateSet.artistId;
         }
 
-        if (newState.collection === this.state.collection &&
-            newState.albumId === this.state.albumId &&
-            newState.artistId === this.state.artistId
-        ) return;
-
-        this.state = newState;
-        this.saveNewState();
-
-        this.observers.forEach(observer => observer(this.state));
+		this.setState(newState);
     }
 
     static modify(callback: (state: BrowserState) => void) {
         const newState = { ...this.state };
         callback(newState);
-
-        if (newState.collection === this.state.collection &&
-            newState.albumId === this.state.albumId &&
-            newState.artistId === this.state.artistId
-        ) return;
-
-        this.state = newState;
-        this.saveNewState();
-
-        this.observers.forEach(observer => observer(this.state));
+		
+		this.setState(newState);
     }
+
+	private static readonly collectionHandler = () => {
+		const newState = { ...this.state };
+		newState.collection = this.state.collection?.getParent() ?? null;
+		
+		this.setState(newState);
+	};
+
+	private static setState(newState: BrowserState) {
+		if (newState.collection === this.state.collection &&
+			newState.albumId === this.state.albumId &&
+			newState.artistId === this.state.artistId
+		) return;
+
+		if (this.state.collection !== null) {
+			this.state.collection.events.deleted.removeListener(this.collectionHandler);
+		}
+
+		if (newState.collection !== null) {
+			newState.collection.events.deleted.addListener(this.collectionHandler);
+		}
+
+		this.state = newState;
+		this.saveNewState();
+
+		this.events.locationChange.emit(this.state);
+	}
 }

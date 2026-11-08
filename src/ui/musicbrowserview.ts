@@ -11,6 +11,7 @@ import { BrowserState, MusicBrowser } from "../musicbrowser.ts";
 import { MenuSystem } from "./menu.ts";
 import { getTracksMenuItems } from "./menus.ts";
 import { Keyboard } from "../keyboard.ts";
+import { Collection } from "../data/collection.ts";
 
 declare const template_album: HTMLTemplateElement;
 declare const template_track_list_item: HTMLTemplateElement;
@@ -20,8 +21,8 @@ type BrowserMode = "artists" | "albums" | "tracks";
 type AlbumSortingMode = "album_name" | "album_artist" | "date";
 type TrackSortingMode = string;
 
-const DEFAULT_ALBUM_NAME = "Unknown album";
-const DEFAULT_ARTIST_NAME = "Unknown artist";
+export const DEFAULT_ALBUM_NAME = "Unknown album";
+export const DEFAULT_ARTIST_NAME = "Unknown artist";
 
 export class MusicBrowserView {
     private static db: IDBPDatabase;
@@ -54,6 +55,8 @@ export class MusicBrowserView {
     private static browserMode: BrowserMode;
     private static albumSortMode: AlbumSortingMode;
     private static trackSortMode: TrackSortingMode;
+
+	private static lastCollection: Collection | null = null;
 
     constructor() {
         throw Error("This static class cannot be instantiated");
@@ -125,7 +128,9 @@ export class MusicBrowserView {
 						text: "Open",
 						default: true,
 						click: selectedIds.length === 1 ? () => MusicBrowser.modify(state => state.albumId = selectedIds[0]) : undefined
-					}
+					},
+                    { kind: "separator" },
+                    getTracksMenuItems(selectedIds.map(id => Album.byID(id)!.trackIds).flat())
 				]
 			}
 		})
@@ -194,17 +199,27 @@ export class MusicBrowserView {
 			this.update();
 		});
 
-        MusicBrowser.attachObserver(this.browserObserver.bind(this));
+		MusicBrowser.events.locationChange.addListener(this.browserObserver.bind(this));
     }
 
+	private static readonly collectionTrackObserver = () => {
+		this.update();
+	}
+
     private static browserObserver(state: BrowserState) {
+		this.lastCollection?.events.tracksChangeIndirect.removeListener(this.collectionTrackObserver);
+
         if (state.albumId !== null || state.artistId !== null) {
+			this.lastCollection = null;
             this.hide();
             return;
         }
 
         this.show();
         this.update();
+
+		state.collection?.events.tracksChangeIndirect.addListener(this.collectionTrackObserver);
+		this.lastCollection = state.collection;
     }
 
     static updateSortComponent() {
@@ -392,7 +407,7 @@ export class MusicBrowserView {
 
 		const currentIds = new Set(artists.map(a => a.id));
 		this.artistsList.querySelectorAll("[data-artist-id]").forEach(el => {
-			if (!currentIds.has(Number(el.getAttribute("data-album-id")))) {
+			if (!currentIds.has(Number(el.getAttribute("data-artist-id")))) {
 				el.remove();
 			}
 		});

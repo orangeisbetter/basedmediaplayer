@@ -1,16 +1,17 @@
-import { Collection } from "../collection.ts";
-import { TreeView, TreeViewChildNode, TreeViewChildNodeClickHandler } from "./treeview.ts";
+import { Collection } from "../data/collection.ts";
+import { TreeListList, TreeListNode, TreeViewChildNodeClickHandler } from "./treeview.ts";
 import { MusicBrowser } from "../musicbrowser.ts";
 import { CompareEntry, compareSmartAlpha, compareStack, compareUndefinedLast } from "../util/sort.ts";
 import { Player } from "../player.ts";
-import { Playlist, PlaylistItemType } from "../playlist.ts";
+import { Playlist, PlaylistItem, PlaylistItemType } from "../playlist.ts";
 import { Stream } from "../stream.ts";
 import { RadioStation } from "../radiostation.ts";
-import { createCollection } from "./createcollection.ts";
+import { createCollectionDialog, renameCollectionDialog } from "./collectionoperations.ts";
+import { getTracksMenuItems } from "./menus.ts";
 
 class CollectionNode {
     collection: Collection;
-    treeViewNode: TreeViewChildNode;
+    treeViewNode: TreeListNode;
     children: CollectionNode[];
 
     constructor(collection: Collection) {
@@ -20,46 +21,61 @@ class CollectionNode {
             this.children.push(new CollectionNode(child));
         }
         CollectionNode.sortChildren(this.children);
-        this.treeViewNode = new TreeViewChildNode({
-            labelText: this.collection.name,
+        this.treeViewNode = new TreeListNode({
+            labelText: this.collection.getName(),
             iconName: "music-box-multiple",
             children: this.children.map(child => child.treeViewNode),
             onClick: () => this.click(),
 			contextMenu: {
 				menuitems: [
+					getTracksMenuItems(Array.from(collection.getTrackIds()), false),
+					{
+						kind: "separator"
+					},
+					{
+						kind: "item",
+						text: "Rename collection",
+						click: () => renameCollectionDialog(collection)
+					},
 					{
 						kind: "item",
 						text: "Create new collection here",
-						click: () => createCollection(collection)
+						click: () => createCollectionDialog(collection)
 					},
 					{
 						kind: "separator"
 					},
 					() => ({
 						kind: "item",
-						text: `Delete collection "${collection.name}" (${collection.getTrackIds().size} tracks)`,
+						text: `Delete collection "${collection.getName()}" (${collection.getTrackIds().size} tracks)`,
 						click: () => collection.deleteSelf()
 					})
 				]
 			}
         });
 
-        collection.attachBaseObserver(collection => this.observer(collection));
+		collection.events.selfChange.addListener(collection => this.selfChangeHandler(collection));
+		collection.events.childrenChange.addListener(collection => this.childrenChangeHandler(collection));
     }
 
     static sortChildren(children: CollectionNode[]) {
         children.sort(compareStack([
-            new CompareEntry(child => child.collection.name, compareUndefinedLast(compareSmartAlpha))
+            new CompareEntry(child => child.collection.getName(), compareUndefinedLast(compareSmartAlpha))
         ]));
     }
 
     linkChildren() {
         for (const childNode of this.children) {
-            this.treeViewNode.addChild(childNode.treeViewNode);
+			// childNode.treeViewNode.attach(this.treeViewNode);
+            this.treeViewNode.childList.add(childNode.treeViewNode);
         }
     }
 
-    observer(collection: Collection) {
+	readonly selfChangeHandler = (collection: Collection) => {
+		this.treeViewNode.label = collection.getName();
+	}
+
+    childrenChangeHandler(collection: Collection) {
         const existingMap = new Map(
             this.children.map(node => [node.collection, node])
         );
@@ -99,15 +115,15 @@ class CollectionNode {
 }
 
 export class LibraryTreeView {
-    static treeView: TreeView;
-    static collectionNodes: CollectionNode[];
-    static collectionTreeNode: TreeViewChildNode;
-	static radioStationsRootNode: TreeViewChildNode;
-	static radioStationsNodes: TreeViewChildNode[] = [];
+	private static treeView: TreeListList;
+	private static collectionNodes: CollectionNode[];
+	private static collectionTreeNode: TreeListNode;
+	private static radioStationsRootNode: TreeListNode;
+	private static radioStationsNodes: TreeListNode[] = [];
 
-    static initCollectionRootNode() {
+	private static initCollectionRootNode() {
         CollectionNode.sortChildren(this.collectionNodes);
-        this.collectionTreeNode = new TreeViewChildNode({
+        this.collectionTreeNode = new TreeListNode({
             labelText: "Collections",
             iconName: "music-box-multiple",
             children: this.collectionNodes.map(node => node.treeViewNode),
@@ -117,16 +133,16 @@ export class LibraryTreeView {
 					{
 						kind: "item",
 						text: "Create new collection here",
-						click: () => createCollection(null)
+						click: () => createCollectionDialog(null)
 					}
 				]
 			}
         });
 
-        Collection.attachRootObserver(collections => this.collectionRootObserver(collections));
+		Collection.events.rootChildrenChange.addListener(() => this.collectionRootObserver());
     }
 
-    static collectionRootObserver(collections: Collection[]) {
+	private static collectionRootObserver() {
         const existingMap = new Map(
             this.collectionNodes.map(node => [node.collection, node])
         );
@@ -137,7 +153,7 @@ export class LibraryTreeView {
         }
 
         // Add ones that have not been here before (and keep track of which ones have)
-        for (const child of collections) {
+        for (const child of Collection.rootCollections) {
             if (existingMap.has(child)) {
                 existingMap.delete(child);
                 continue;
@@ -152,19 +168,48 @@ export class LibraryTreeView {
 
         // And this is where we put them back
         for (const node of this.collectionNodes) {
-            this.collectionTreeNode.addChild(node.treeViewNode);
+			// node.treeViewNode.attach(this.collectionTreeNode);
+            this.collectionTreeNode.childList.add(node.treeViewNode);
         }
     }
 
-	static getRadioStationItem(station: RadioStation): TreeViewChildNode {
+    private static play(item: PlaylistItem) {
+		Playlist.clear();
+		Playlist.add(item);
+		Playlist.changeTrack(0);
+		Player.play();
+	}
+
+	private static getRadioStationItem(station: RadioStation): TreeListNode {
 		const stream = new Stream(station.url, station.title);
-		return new TreeViewChildNode({
+		const item: PlaylistItem = { type: PlaylistItemType.STREAM, stream: stream };
+		return new TreeListNode({
 			labelText: station.title ?? station.url,
-			onClick: () => {
-				Playlist.clear();
-				Playlist.add({ type: PlaylistItemType.STREAM, stream: stream });
-				Playlist.changeTrack(0);
-				Player.play();
+			onClick: () => this.play(item),
+			contextMenu: {
+				menuitems: [
+					{
+						kind: "item",
+						text: "Play",
+						default: true,
+						click: () => this.play(item),
+					},
+					{
+						kind: "item",
+						text: "Play next",
+						click: () => Playlist.insertNext(item)
+					},
+					{
+						kind: "item",
+						text: "Add to playlist",
+						click: () => {
+							Playlist.add(item);
+							if (Playlist.getNumTracks() == 1) {
+								Playlist.changeTrack(0);
+							}
+						}
+					}
+				]
 			}
 		})
 	}
@@ -182,38 +227,32 @@ export class LibraryTreeView {
 
 		for (const station of stations) {
 			const newNode = this.getRadioStationItem(station);
-			this.radioStationsRootNode.addChild(newNode);
+			// newNode.attach(this.radioStationsRootNode);
+			this.radioStationsRootNode.childList.add(newNode);
 			this.radioStationsNodes.push(newNode);
 		}
 	}
 
     static init(element: HTMLElement) {
-        this.collectionNodes = Collection.rootCollections.map(child => new CollectionNode(Collection.byID(child)!));
+        this.collectionNodes = Array.from(Collection.rootCollections).map(child => new CollectionNode(child));
         this.initCollectionRootNode();
-		this.radioStationsRootNode = new TreeViewChildNode({
+		this.radioStationsRootNode = new TreeListNode({
 			labelText: "Radio Stations",
 			iconName: "radio",
 			expanded: true,
 		});
-        this.treeView = new TreeView(element, [
-            new TreeViewChildNode({
+        this.treeView = new TreeListList(element, [
+            new TreeListNode({
                 labelText: "Local library",
                 iconName: "library-music",
                 onClick: () => this.localLibraryClick(),
-                // children: [
-                //     new TreeViewChildNode({
-                //         labelText: "All music",
-                //         iconName: "album",
-                //         onClick: () => this.albumsClick()
-                //     }),
-                // ]
             }),
             this.collectionTreeNode,
-            // new TreeViewChildNode({
+            // new TreeNodeItem({
             //     labelText: "Playlists",
             //     iconName: "playlist-music",
             //     children: [
-            //         new TreeViewChildNode({
+            //         new TreeNodeItem({
             //             labelText: "Study beats",
             //             iconName: "playlist-music",
             //         })

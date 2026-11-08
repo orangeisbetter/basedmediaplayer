@@ -1,5 +1,6 @@
 import { Album } from "../album.ts";
 import { Artist } from "../artist.ts";
+import { Collection } from "../data/collection.ts";
 import { BrowserState, MusicBrowser } from "../musicbrowser.ts";
 
 export class BreadcrumbsView {
@@ -10,6 +11,8 @@ export class BreadcrumbsView {
     private static collection: HTMLDivElement;
     private static album: HTMLDivElement;
     private static artist: HTMLDivElement;
+
+	private static collectionChangeHandlers: { collection: Collection, handler: (_: Collection) => void }[] = [];
 
     static init() {
         this.breadcrumbs = document.querySelector("#breadcrumbs")!;
@@ -25,10 +28,12 @@ export class BreadcrumbsView {
 
         this.root.appendChild(this.delimiter.cloneNode(true));
 
-        const rootItem = document.createElement("a");
-        rootItem.title = rootItem.textContent = "Local library";
-        rootItem.addEventListener("click", () => MusicBrowser.navigate({}));
-        this.root.appendChild(rootItem);
+		{
+			const rootItem = document.createElement("a");
+			rootItem.title = rootItem.textContent = "Local library";
+			rootItem.addEventListener("click", () => MusicBrowser.navigate({}));
+			this.root.appendChild(rootItem);
+		}
 
         this.breadcrumbs.appendChild(this.root);
 
@@ -47,28 +52,36 @@ export class BreadcrumbsView {
 
         this.breadcrumbs.appendChild(this.album);
 
-        MusicBrowser.attachObserver(state => this.browserObserver(state));
-    }
-
-    private static browserObserver(state: BrowserState) {
-        this.update(state);
+		MusicBrowser.events.locationChange.addListener(state => this.update(state));
     }
 
     private static update(state: BrowserState) {
+		// Remove stale event handlers
+		for (const item of this.collectionChangeHandlers) {
+			item.collection.events.selfChange.removeListener(item.handler);
+		}
+		this.collectionChangeHandlers.length = 0;
+
         this.collection.innerHTML = "";
 
         if (state.collection) {
-            for (const collection of state.collection.getCollectionPath()) {
-                this.collection.appendChild(this.delimiter.cloneNode(true));
+			for (let collection: Collection | null = state.collection; collection !== null; collection = collection.getParent()) {
+				const node = document.createElement("a");
+				node.title = node.textContent = collection.getName();
+				node.addEventListener("click", () => MusicBrowser.navigate({
+					collection: collection
+				}));
 
-                const node = document.createElement("a");
-				node.title = node.textContent = collection.name;
-                node.addEventListener("click", () => MusicBrowser.navigate({
-                    collection: collection
-                }));
+				this.collection.prepend(node);
 
-                this.collection.appendChild(node);
-            }
+				this.collection.prepend(this.delimiter.cloneNode(true));
+
+				const selfChangeHandler = (collection: Collection) => {
+					node.title = node.textContent = collection.getName();
+				};
+				collection.events.selfChange.addListener(selfChangeHandler);
+				this.collectionChangeHandlers.push({ collection, handler: selfChangeHandler });
+			}
         }
 
         this.album.innerHTML = "";

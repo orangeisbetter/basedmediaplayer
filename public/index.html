@@ -64,11 +64,6 @@
             <ul></ul>
         </li>
     </template>
-    <template id="tree_list">
-        <div class="tree-view">
-            <ul></ul>
-        </div>
-    </template>
     <template id="template_playlist_item">
         <div class="playlist-item" draggable="true">
             <span class="track-name"></span>
@@ -166,6 +161,20 @@
                 <div class="glue"></div>
                 <button type="button" onclick="this.closest('dialog').close()">Cancel</button>
                 <button type="submit" value="create">Create</button>
+            </div>
+        </form>
+    </dialog>
+    <dialog style="width: 300px" id="rename-collection-dialog">
+        <form method="dialog">
+            <div class="content">
+                <h2>Rename collection</h2>
+                <p>Please enter the new name for the collection:</p>
+                <input type="text" name="name">
+            </div>
+            <div class="button-bar">
+                <div class="glue"></div>
+                <button type="button" onclick="this.closest('dialog').close()">Cancel</button>
+                <button type="submit" value="save">Save</button>
             </div>
         </form>
     </dialog>
@@ -297,7 +306,11 @@
 	</dialog>
     <div class="sidebar resizable-panel resize-right" style="--size: 200px" data-min-size="150" data-default-size="200">
         <div class="resize-handle"></div>
-        <div id="sidebar"></div>
+		<div>
+			<div class="tree-view">
+				<ul id="treeview-list"></ul>
+			</div>
+		</div>
         <dialog id="anonymous-usage-consent" style="border: 1px solid #ccc; margin: 8px; bottom: 0; width: 300px;">
             <form method="dialog">
                 <div class="content">
@@ -337,7 +350,7 @@
     </header>
     <div class="main-view">
         <div class="browser-view">
-            <div class="albums-list selectable-list"></div>
+            <div class="albums-list selectable-list" tabindex="0"></div>
             <div class="artists-list">
                 <table>
                     <thead>
@@ -425,7 +438,7 @@
                         <button id="btn-albums-shuffle-play">Shuffle play</button>
                         <button id="btn-albums-add-to-playlist">Add to playlist</button>
                     </div>
-                    <div class="albums-list" id="albums"></div>
+                    <div class="albums-list selectable-list" id="albums"></div>
                 </div>
                 <div class="tracks-section" id="tracks-section">
                     <h2>Tracks</h2>

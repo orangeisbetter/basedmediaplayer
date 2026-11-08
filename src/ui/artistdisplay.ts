@@ -1,6 +1,6 @@
 import { Album } from "../album.ts";
 import { Artist } from "../artist.ts";
-import { Collection } from "../collection.ts";
+import { Collection } from "../data/collection.ts";
 import { BrowserState, MusicBrowser } from "../musicbrowser.ts";
 import { Player } from "../player.ts";
 import { Playlist, PlaylistItem } from "../playlist.ts";
@@ -9,7 +9,10 @@ import { Track } from "../track.ts";
 import { CompareEntry, compareSmartAlpha, compareStack, compareUndefinedLast, numberCompare } from "../util/sort.ts";
 import { MenuSystem } from "./menu.ts";
 import { getTracksMenuItems } from "./menus.ts";
+import { DEFAULT_ALBUM_NAME, DEFAULT_ARTIST_NAME } from "./musicbrowserview.ts";
 import { SelectableList } from "./selectablelist.ts";
+
+declare const template_album: HTMLTemplateElement;
 
 export class ArtistDisplay {
     private static rootElement: HTMLDivElement;
@@ -31,7 +34,8 @@ export class ArtistDisplay {
     private static albumsList: HTMLDivElement;
 
     private static trackTableBody: HTMLTableSectionElement;
-    private static list: SelectableList;
+	private static albumsSelList: SelectableList;
+    private static tracksSelList: SelectableList;
     private static lastCollection: Collection | null;
 
     private static trackIds: number[] = [];
@@ -67,12 +71,30 @@ export class ArtistDisplay {
         this.tracksSection = this.rootElement.querySelector("#tracks-section")!;
 
         this.albumsList = this.rootElement.querySelector("#albums")!;
+		this.albumsSelList = SelectableList.register(this.albumsList);
 
         this.trackTableBody = this.rootElement.querySelector("tbody")!;
-        this.list = SelectableList.register(this.trackTableBody);
+        this.tracksSelList = SelectableList.register(this.trackTableBody);
+
+		MenuSystem.setContextMenu(this.albumsList, () => {
+			const selectedIds = this.albumsSelList.getSelected(info => this.albumIds[info.index]);
+			if (selectedIds.length === 0) return null;
+			return {
+				menuitems: [
+					{
+						kind: "item",
+						text: "Open",
+						default: true,
+						click: selectedIds.length === 1 ? () => MusicBrowser.modify(state => state.albumId = selectedIds[0]) : undefined
+					},
+					{ kind: "separator" },
+					getTracksMenuItems(selectedIds.map(id => Album.byID(id)!.trackIds).flat())
+				]
+			}
+		});
 
         MenuSystem.setContextMenu(this.trackTableBody, () => {
-            const selection = this.list.getSelected().map(index => this.trackIds[index]);
+            const selection = this.tracksSelList.getSelected().map(index => this.trackIds[index]);
             if (selection.length == 0) return null;
             return {
                 menuitems: [
@@ -94,7 +116,7 @@ export class ArtistDisplay {
             }
         });
 
-        MusicBrowser.attachObserver(state => this.browserObserver(state));
+		MusicBrowser.events.locationChange.addListener(state => this.browserObserver(state));
     }
 
     private static collectionTrackObserver = (collection: Collection) => {
@@ -104,7 +126,7 @@ export class ArtistDisplay {
     }
 
     private static browserObserver(state: BrowserState) {
-        this.lastCollection?.detachTrackObserver(this.collectionTrackObserver);
+		this.lastCollection?.events.tracksChangeIndirect.removeListener(this.collectionTrackObserver);
         this.lastCollection = null;
 
         if (state.artistId === null) {
@@ -115,7 +137,7 @@ export class ArtistDisplay {
         this.show();
         this.displayArtist();
 
-        MusicBrowser.collection?.attachTrackObserver(this.collectionTrackObserver);
+		MusicBrowser.collection?.events.tracksChangeIndirect.addListener(this.collectionTrackObserver);
         this.lastCollection = MusicBrowser.collection;
     }
 
@@ -147,7 +169,7 @@ export class ArtistDisplay {
             this.albumsSection.style.display = "";
             this.albumsList.innerHTML = "";
             for (const album of albums) {
-                this.albumsList.appendChild(this.getAlbumElement(album, artist));
+                this.albumsList.appendChild(this.getAlbumElement(album));
             }
         } else {
             this.albumsSection.style.display = "none";
@@ -183,8 +205,23 @@ export class ArtistDisplay {
         this.rootElement.scroll({ top: 0 });
     }
 
-    private static getAlbumElement(album: Album, artist: Artist): HTMLDivElement {
-        const albumElement = document.createElement("div");
+    private static getAlbumElement(album: Album): DocumentFragment {
+		const clone = document.importNode(template_album.content, true);
+		clone.firstElementChild!.setAttribute("data-album-id", `${album.id}`);
+
+		const cover: HTMLImageElement = clone.querySelector(".cover")!;
+		cover.src = album.getCoverURL();
+
+		const albumName: HTMLElement = clone.querySelector(".album-name")!;
+		albumName.textContent = albumName.title = album.name ?? DEFAULT_ALBUM_NAME;
+
+		const albumArtist: HTMLElement = clone.querySelector(".album-artist")!;
+		albumArtist.textContent = albumArtist.title = album.getArtistName() ?? DEFAULT_ARTIST_NAME;
+
+		return clone;
+
+        /*
+		const albumElement = document.createElement("div");
         albumElement.className = "album";
 
         const coverBox = document.createElement("div");
@@ -217,6 +254,7 @@ export class ArtistDisplay {
         albumElement.appendChild(albumArtist);
 
         return albumElement;
+		*/
     }
 
     private static getTrackElement(track: Track): HTMLTableRowElement {
@@ -260,7 +298,7 @@ export class ArtistDisplay {
 
     private static playAllTracks(index?: number) {
         // Get index from beginning of selection if not specified
-        index ??= this.list.getSelected()[0];
+        index ??= this.tracksSelList.getSelected()[0];
 
         Playlist.clear();
         Playlist.add(...this.trackIds.map(PlaylistItem.createFromTrack));
@@ -318,7 +356,7 @@ export class ArtistDisplay {
     }
 
     private static copyAsTSV() {
-        const indices = this.list.getSelected();
+        const indices = this.tracksSelList.getSelected();
         const tsvData = indices
             .map(index => {
                 const track = Track.byID(this.trackIds[index])!;

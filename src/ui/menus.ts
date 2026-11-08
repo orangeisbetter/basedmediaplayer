@@ -1,34 +1,46 @@
-import { Collection } from "../collection.ts";
+import { Collection } from "../data/collection.ts";
 import { Player } from "../player.ts";
 import { Playlist, PlaylistItem } from "../playlist.ts";
 import { CompareEntry, compareSmartAlpha, compareStack, compareUndefinedLast } from "../util/sort.ts";
-import { createCollection } from "./createcollection.ts";
+import { createCollectionDialog } from "./collectionoperations.ts";
 import { MenuEntry } from "./menu.ts";
 
-export function getTracksMenuItems(trackIds: number[]): MenuEntry {
-	const rootCollectionMenuItems: MenuEntry[] = Collection.rootCollections
-		.map(collectionId => Collection.byID(collectionId)!)
-		.sort(compareStack([
-			new CompareEntry(collection => collection.name, compareUndefinedLast(compareSmartAlpha))
-		]))
-		.map(collection => getCollectionMenuItem(trackIds, collection));
-
-    const thing: MenuEntry = [
+export function getTracksMenuItems(trackIds: number[], withCollections: boolean = true): MenuEntry {
+	const common: MenuEntry = [
         {
             kind: "item",
             text: "Play",
             click: () => tracksPlay(trackIds)
         },
-        {
+		{
+			kind: "item",
+			text: "Shuffle play",
+			click: () => shufflePlay(trackIds)
+		},
+        () => ({
             kind: "item",
             text: "Play next",
 			click: Playlist.getNumTracks() == 0 ? undefined : () => tracksPlayNext(trackIds)
-        },
+        }),
         {
             kind: "item",
             text: "Add to playlist",
             click: () => tracksAddToPlaylist(trackIds)
         },
+	];
+
+	if (!withCollections) {
+		return common;
+	}
+
+	const rootCollectionMenuItems: MenuEntry[] = Array.from(Collection.rootCollections)
+		.sort(compareStack([
+			new CompareEntry(collection => collection.getName(), compareUndefinedLast(compareSmartAlpha))
+		]))
+		.map(collection => getCollectionMenuItem(trackIds, collection));
+
+    return [
+		common,
         { kind: "separator" },
         {
             kind: "item",
@@ -46,9 +58,9 @@ export function getTracksMenuItems(trackIds: number[]): MenuEntry {
                         kind: "item",
                         text: "Add to new collection",
                         click: () => {
-                            createCollection(null).then(collection => {
+                            createCollectionDialog(null).then(collection => {
                                 if (collection === null) return;
-                                collection.add(trackIds);
+                                collection.addTracks(trackIds);
                             });
                         }
                     }
@@ -56,47 +68,46 @@ export function getTracksMenuItems(trackIds: number[]): MenuEntry {
             }
         },
         () => {
-            if (Collection.recentlyAdded === null) return null;
-            const collection = Collection.recentlyAdded;
+            if (Collection.recentlyUsed === null) return null;
+            const collection = Collection.recentlyUsed;
             return {
                 kind: "item",
-                text: `Add to collection '${collection.name}'`,
-                click: () => collection.add(trackIds)
+                text: `Add to collection '${collection.getName()}'`,
+                click: () => collection.addTracks(trackIds)
             };
         },
         () => {
             const collections = Collection.getResidingCollections(trackIds);
             return Array.from(collections)
 				.sort(compareStack([
-					new CompareEntry(collection => collection.name, compareUndefinedLast(compareSmartAlpha))
+					new CompareEntry(collection => collection.getName(), compareUndefinedLast(compareSmartAlpha))
 				]))
 				.map(collection => ({
 					kind: "item",
-					text: `Remove from collection '${collection.name}'`,
-					click: () => collection.remove(trackIds)
+					text: `Remove from collection '${collection.getName()}'`,
+					click: () => collection.removeTracks(trackIds)
 				}));
         }
     ];
-	return thing;
 }
 
 function getCollectionMenuItem(trackIds: number[], collection: Collection): MenuEntry {
 	const childrenCollectionMenus: MenuEntry[] = Array.from(collection.getChildren())
 		.sort(compareStack([
-			new CompareEntry(collection => collection.name, compareUndefinedLast(compareSmartAlpha))
+			new CompareEntry(collection => collection.getName(), compareUndefinedLast(compareSmartAlpha))
 		]))
 		.map(collection => getCollectionMenuItem(trackIds, collection));
 
     return {
         kind: "item",
-        text: collection.name,
+        text: collection.getName(),
         submenu: {
             menuitems: [
                 {
                     kind: "item",
                     text: "Add here",
                     click: () => {
-                        collection.add(trackIds);
+                        collection.addTracks(trackIds);
                     }
                 },
 				{ kind: "separator" },
@@ -111,9 +122,9 @@ function getCollectionMenuItem(trackIds: number[], collection: Collection): Menu
                     kind: "item",
                     text: "Add to new collection",
                     click: () => {
-                        createCollection(collection).then(collection => {
+                        createCollectionDialog(collection).then(collection => {
                             if (collection === null) return;
-                            collection.add(trackIds);
+                            collection.addTracks(trackIds);
                         });
                     }
                 }
@@ -123,8 +134,17 @@ function getCollectionMenuItem(trackIds: number[], collection: Collection): Menu
 }
 
 function tracksPlay(trackIds: number[]) {
+	Playlist.clear();
     Playlist.add(...trackIds.map(PlaylistItem.createFromTrack));
-    Playlist.changeTrack(Playlist.getNumTracks() - trackIds.length);
+    Playlist.changeTrack(0);
+    Player.play();
+}
+
+function shufflePlay(trackIds: number[]) {
+	Playlist.clear();
+    Playlist.add(...trackIds.map(PlaylistItem.createFromTrack));
+	Playlist.shuffle();
+    Playlist.changeTrack(0);
     Player.play();
 }
 

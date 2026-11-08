@@ -141,7 +141,7 @@ export class PlayerView {
         Player.events.play.addListener(this.playHandler.bind(this));
         Player.events.pause.addListener(this.pauseHandler.bind(this));
 
-        MusicBrowser.attachObserver(() => this.observerHandler());
+		MusicBrowser.events.locationChange.addListener(() => this.observerHandler());
     }
 
 	private static get isActive() {

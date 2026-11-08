@@ -249,5 +249,25 @@
 		"bug_fixes": [
 			"Changed default radio stations to use https instead of plain http to remove \"not secure\" banner"
 		]
+	},
+	{
+		"version": "0.6.2",
+		"date": "2026-11-07",
+		"features": [
+			"Added the ability to rename collections by right clicking on them in the tree view",
+			"Added \"Shuffle play\" option to common context menu actions",
+			"Made the artist view's album list function identically to the albums view, with a selectable list and context menus"
+		],
+		"changes": [
+			"Changed the behavior of the \"Play\" action in context menus to clear the playlist first instead of adding to the end of the playlist"
+		],
+		"bug_fixes": [
+			"Refactored collections to separate in-memory responsibility with persistence for cleaner architecture",
+			"Refactored tree list to remove complicated structure",
+			"Migrated all usages of the observer pattern to the event system",
+			"Fixed a bug where updating a parent collection would remove the context menus of its children in the tree view",
+			"Fixed a bug where the artists view whilst inside a collection would not render correctly",
+			"Fixed a bug where the music browser would not update when tracks are added or removed to a collection"
+		]
 	}
 ]
